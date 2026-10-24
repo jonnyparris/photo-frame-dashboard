@@ -1,6 +1,7 @@
 // Photos: full-bleed editorial slideshow with layout modes.
 (function () {
   'use strict';
+  var D = window.DATA;
   var V = { el: null, show: null, layout: 'auto', loud: false };
   var LAYOUTS = [['auto', 'Auto'], ['cover', 'Cover'], ['pair', 'Pair'], ['collage', 'Collage'], ['polaroid', 'Polaroid']];
 
@@ -13,6 +14,10 @@
 
   App.register('photos', {
     show: function (el) {
+      if (!D.photos.length) {
+        el.innerHTML = '<div class="photos" style="display:flex;align-items:center;justify-content:center;height:100%"><div style="text-align:center"><div class="serif" style="font-size:34px;font-style:italic;color:#8b96a5">No photos yet</div><div class="label" style="margin-top:12px;color:#8b96a5">Drop images in the bucket and they\u2019ll appear here</div></div></div>';
+        return;
+      }
       if (!V.el) {
         V.el = el;
         el.innerHTML = '<div class="photos">' +

@@ -190,14 +190,15 @@
     el.classList.remove('is-warming');
   }
   // Pre-build (startup) and re-build (after data changes) hidden views in the background, one per
-  // slot, so navigating to them never pays the rebuild cost.
+  // slot, so navigating to them never pays the rebuild cost. Views hidden by config are skipped.
   var refreshTimer = null;
   function refreshStale(delay) {
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(function next() {
       var name = Object.keys(App.views).filter(function (k) {
         var v = App.views[k];
-        return k !== App.current && (!v._built || v._dirty);
+        var el = $('#view-' + k);
+        return k !== App.current && el && el.style.display !== 'none' && (!v._built || v._dirty);
       })[0];
       if (!name) return;
       prebuild(name);
@@ -331,9 +332,22 @@
     onIdleTick();
   }
 
+  // ------------------------------------------------------------ section visibility
+  App.setSectionVisible = function (name, visible) {
+    var rail = $('#rail [data-go="' + name + '"]');
+    if (rail) rail.style.display = visible ? '' : 'none';
+    var view = $('#view-' + name);
+    if (view) view.style.display = visible ? '' : 'none';
+  };
+  function applyHidden() {
+    if (!D.config.tasks) App.setSectionVisible('tasks', false);
+    if (!D.config.agents) App.setSectionVisible('agents', false);
+    App.setSectionVisible('control', !!D.config.control);
+  }
+
   // ------------------------------------------------------------ boot
   App.start = function () {
-    App.setTime(15, 18); // demo default: a busy weekday afternoon
+    applyHidden();
     fit();
     window.addEventListener('resize', fit);
     // Switch tabs the instant a finger lands (pointerdown), not on release. Keyboard "clicks"

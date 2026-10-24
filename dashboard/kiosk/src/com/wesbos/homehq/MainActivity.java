@@ -186,6 +186,11 @@ public class MainActivity extends Activity {
     WebSettings s = web.getSettings();
     s.setJavaScriptEnabled(true);
     s.setDomStorageEnabled(true);
+    // The dashboard page is served over HTTPS but talks to Home Assistant over plain HTTP on the
+    // LAN (192.168.x.x). WebView blocks that as mixed content by default, so allow it. Safe here:
+    // the page is the dashboard's own origin, and cleartext is already allowed by the network
+    // security config for the local asset server.
+    s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     s.setUseWideViewPort(true);
     s.setMediaPlaybackRequiresUserGesture(false);
     // Keep navigation inside the kiosk. When the kiosk starts at boot before Wi-Fi is up, the

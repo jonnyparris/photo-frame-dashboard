@@ -4,6 +4,7 @@
   var D = window.DATA;
 
   function src(p, big) {
+    if (p.url) return p.url;
     var w = p.o === 'p' ? 800 : 1600, h = p.o === 'p' ? 1200 : 1000;
     if (!big) { w = Math.round(w / 2); h = Math.round(h / 2); }
     return App.img(p.seed, w, h);

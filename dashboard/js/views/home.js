@@ -122,8 +122,8 @@
     var lights = D.devices.filter(function (d) { return d.type === 'light' && d.on; }).length;
     var unlocked = D.devices.filter(function (d) { return d.type === 'lock' && !d.locked; });
     var garage = D.devices.filter(function (d) { return d.type === 'garage'; })[0];
-    var secure = !unlocked.length && garage.state === 'closed';
-    var secText = secure ? 'All locked' : (garage.state !== 'closed' ? 'Garage open' : unlocked[0].name + ' unlocked');
+    var secure = !unlocked.length && (!garage || garage.state === 'closed');
+    var secText = !D.devices.length ? 'No devices yet' : (garage && garage.state !== 'closed' ? 'Garage open' : (unlocked[0] ? unlocked[0].name + ' unlocked' : 'All locked'));
     return '<div class="label">Home</div>' +
       '<div class="h-st-row">' + App.icon('bulb', 24) + '<b class="num">' + lights + '</b><span>lights on</span></div>' +
       '<div class="h-st-row' + (secure ? '' : ' is-warn') + '">' + App.icon(secure ? 'lock' : 'unlock', 24) + '<span>' + secText + '</span></div>' +
@@ -132,17 +132,20 @@
 
   function paint() {
     var el = V.el;
-    el.querySelector('.h-clock').innerHTML = clock();
-    el.querySelector('.h-weather').innerHTML = weather();
-    el.querySelector('.h-presence').innerHTML = presence();
-    el.querySelector('.h-hero-slot').innerHTML = hero();
-    el.querySelector('.h-lanes').innerHTML = lanes();
-    el.querySelector('.h-chores').innerHTML = chores();
-    el.querySelector('.h-shop').innerHTML = shopping();
-    el.querySelector('.h-status').innerHTML = status();
+    var set = function (sel, html) { var n = el.querySelector(sel); if (n) n.innerHTML = html; };
+    set('.h-clock', clock());
+    set('.h-weather', weather());
+    set('.h-presence', presence());
+    set('.h-hero-slot', hero());
+    set('.h-lanes', lanes());
+    set('.h-chores', chores());
+    set('.h-shop', shopping());
+    set('.h-status', status());
+    set('.h-photo-cap', D.photos.length ? '' : '<b>No photos yet</b><span>Add some to the bucket</span>');
   }
 
   function photoCaption(s) {
+    if (!s || !s.photos || !s.photos.length) return;
     var m = App.photoMeta(s.photos[0]);
     V.el.querySelector('.h-photo-cap').innerHTML = '<b>' + (m.onThisDay ? 'On this day · ' : '') + m.kicker + '</b><span>' + App.esc(m.place) + '</span>';
   }
@@ -151,16 +154,17 @@
     show: function (el) {
       V.el = el;
       if (!el.firstChild) {
+        var side = '<button class="h-photo" data-go="photos"><div class="h-photo-stage"></div><div class="h-photo-cap"></div></button>';
+        var rows = ['1fr'];
+        if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('142px'); }
+        if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('150px'); }
+        else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('150px'); }
         el.innerHTML = '<div class="home">' +
           '<div class="h-clock" data-go="calendar"></div>' +
           '<div class="h-weather"></div>' +
           '<div class="h-presence"></div>' +
           '<div class="h-main"><div class="h-hero-slot"></div><div class="h-lanes" style="grid-template-columns:repeat(' + D.people.length + ',1fr)"></div></div>' +
-          '<div class="h-side">' +
-          '  <button class="h-photo" data-go="photos"><div class="h-photo-stage"></div><div class="h-photo-cap"></div></button>' +
-          '  <button class="h-chores card" data-go="tasks"></button>' +
-          '  <div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>' +
-          '</div></div>';
+          '<div class="h-side" style="grid-template-rows:' + rows.join(' ') + '">' + side + '</div></div>';
         el.addEventListener('click', function (e) {
           var ev = e.target.closest('[data-ev]');
           if (ev) { App.eventSheet(App.findEvent(ev.dataset.ev)); return; }
