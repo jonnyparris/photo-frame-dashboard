@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard Setup Quiz</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #171b22;
+    --panel2: #1e242e;
+    --ink: #e8ecf2;
+    --muted: #8b96a5;
+    --accent: #2d5bff;
+    --accent2: #00a36c;
+    --line: #2a3140;
+    --danger: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+  header .brand { font-weight: 700; }
+  header .step { color: var(--muted); font-size: 13px; }
+  .progress { height: 3px; background: var(--line); }
+  .progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .25s ease; }
+  main { flex: 1; width: 100%; max-width: 720px; margin: 0 auto; padding: 32px 24px 120px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 18px;
+    animation: pop .18s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .card .tag {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--accent2); font-weight: 700; margin: 0 0 10px;
+  }
+  .card h2 { margin: 0 0 8px; font-size: 22px; }
+  .card p.lead { margin: 0 0 22px; color: var(--muted); font-size: 15px; }
+  .opt {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 10px; cursor: pointer; transition: border-color .12s, background .12s;
+    background: var(--panel2);
+  }
+  .opt:hover { border-color: #3a4658; }
+  .opt.sel { border-color: var(--accent); background: rgba(45, 91, 255, .08); }
+  .opt .k {
+    flex: 0 0 auto; min-width: 26px; height: 26px; border-radius: 7px;
+    border: 1px solid var(--line); display: grid; place-items: center;
+    font-size: 12px; color: var(--muted); background: var(--panel);
+  }
+  .opt.sel .k { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .opt .body { flex: 1; }
+  .opt .body b { display: block; font-size: 15px; }
+  .opt .body span { color: var(--muted); font-size: 13.5px; }
+  .opt.multi .check { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line); margin-top: 1px; display: grid; place-items: center; }
+  .opt.multi.sel .check { border-color: var(--accent2); background: var(--accent2); }
+  .opt.multi.sel .check::after { content: "✓"; color: #04120b; font-size: 13px; font-weight: 800; }
+  input[type=text], textarea {
+    width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--ink);
+    font: inherit; font-size: 15px; margin-top: 8px;
+  }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 12px; }
+  .row > * { flex: 1; }
+  label.f { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel2); font-size: 13.5px; cursor: pointer; user-select: none;
+  }
+  .chip.sel { border-color: var(--accent); background: rgba(45,91,255,.12); }
+  .nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 14px 24px; display: flex; gap: 12px; justify-content: space-between; align-items: center; }
+  .nav .hint { color: var(--muted); font-size: 12.5px; }
+  button {
+    font: inherit; font-size: 14.5px; font-weight: 600;
+    padding: 11px 22px; border-radius: 10px; cursor: pointer; border: 1px solid transparent;
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+  button.ghost:hover { color: var(--ink); }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sw { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; }
+  .sw.sel { border-color: #fff; transform: scale(1.08); }
+  .summary { white-space: pre-wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 18px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: auto; max-height: 50vh; }
+  .done h2 { margin-top: 0; }
+  .done .big { font-size: 30px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="brand">Dashboard Setup</span> — tell me about your family</h1>
+  <span class="step" id="step"></span>
+</header>
+<div class="progress"><i id="bar"></i></div>
+<main id="main"></main>
+<nav class="nav">
+  <button class="ghost" id="back">← Back</button>
+  <span class="hint" id="hint"></span>
+  <button class="primary" id="next">Next →</button>
+</nav>
+
+<script>
+(function () {
+  var KEY = 'dashboard-quiz-v1';
+  var A = {};
+  try { A = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { A = {}; }
+
+  var COLORS = ['#2D5BFF','#E4007C','#00A36C','#FFB000','#9C27B0','#FF5722','#00BCD4','#607D8B'];
+
+  // ---- section definitions -------------------------------------------------
+  var SECTIONS = [];
+
+  function q(section, tag, title, lead) {
+    SECTIONS.push({ id: section, tag: tag, title: title, lead: lead, items: [] });
+    return SECTIONS[SECTIONS.length - 1];
+  }
+
+  function opt(section, body, sub, key, value) { section.items.push({ t: 'opt', body: body, sub: sub, key: key, value: value }); }
+  function multi(section, body, sub, key, value) { section.items.push({ t: 'multi', body: body, sub: sub, key: key, value: value }); }
+  function text(section, label, key, ph) { section.items.push({ t: 'text', label: label, key: key, ph: ph || '' }); }
+  function chips(section, label, key, options) { section.items.push({ t: 'chips', label: label, key: key, options: options }); }
+  function note(section, html) { section.items.push({ t: 'note', html: html }); }
+
+  // --- 1. People
+  var s = q('people', 'Family', 'Who lives here?', "The dashboard organises everything by person. List the people (and pets) you want shown — first names only is fine.");
+  text(s, 'Family name (shown in headers)', 'familyName', 'e.g. "The Keatings" or just "Family"');
+  text(s, 'People — comma separated, with age in brackets. e.g. "Wes, Claudia, Maya (10), Otto (6)"', 'peopleList', 'Wes, Claudia, Maya (10), Otto (6)');
+  note(s, 'Pets count as people here — the demo treats them as family members with their own colour. Add them to the list above if you want (no age needed, or use their age in dog-years, whatever).');
+
+  // --- 2. Focus
+  s = q('focus', 'The point of it', 'What matters most?', 'What should earn the biggest spot on the home screen? Pick up to four.');
+  multi(s, 'Today\'s schedule', 'Who needs to be where, when', 'focus', 'calendar');
+  multi(s, 'Weather', 'Current + next hours', 'focus', 'weather');
+  multi(s, 'Chores & stars', 'Kid to-dos and reward stars', 'focus', 'tasks');
+  multi(s, 'Photos', 'A family photo slideshow', 'focus', 'photos');
+  multi(s, 'Shopping list', 'Groceries, grouped by store', 'focus', 'shopping');
+  multi(s, 'Smart home', 'Rooms, lights, climate, music', 'focus', 'control');
+
+  // --- 3. Calendar
+  s = q('calendar', 'Calendar', 'Where does the schedule come from?', 'The demo uses made-up events. For the real thing I need to know your source.');
+  opt(s, 'Google Calendar (or any iCal)', 'I\'ll wire it to a private ICS feed — events update themselves. Best option.', 'calSource', 'ics');
+  opt(s, 'I\'ll type in recurring events', 'School runs, sports, meals — the steady rhythm. Quick to set up, manual to change.', 'calSource', 'manual');
+  opt(s, 'Skip the calendar for now', 'Ship it with the demo data, swap later.', 'calSource', 'skip');
+  text(s, 'If iCal: paste the private ICS URL (optional for now)', 'icsUrl', 'https://calendar.google.com/calendar/ical/...');
+
+  // --- 4. Tasks
+  s = q('tasks', 'Chores', 'Do the kids (or anyone) want chores + stars?', 'The demo has morning/after-school/evening routines with star rewards.');
+  opt(s, 'Yes — chores with star rewards', 'Each kid gets a checklist; stars accumulate. Great for the frame.', 'tasksOn', 'stars');
+  opt(s, 'Chores, no stars', 'Just checklists, no reward counting.', 'tasksOn', 'plain');
+  opt(s, 'No chores section', 'Leave it out.', 'tasksOn', 'off');
+
+  // --- 5. Shopping
+  s = q('shopping', 'Shopping', 'Do you want a grocery list?', 'Grouped by store, with a "usuals" quick-add row.');
+  opt(s, 'Yes', 'I\'ll ask which stores and staple items you want pre-loaded.', 'shopOn', true);
+  opt(s, 'No, skip it', '', 'shopOn', false);
+  text(s, 'If yes: store names, comma separated', 'stores', 'e.g. "FreshCo, Costco, Shoppers"');
+  text(s, 'Staples / usuals, comma separated', 'usuals', 'e.g. "Milk, Eggs, Bananas, Bread, Coffee"');
+
+  // --- 6. Weather
+  s = q('weather', 'Weather', 'Where\'s the weather for?', 'A rough location is enough — I\'ll use it to pick the right forecast source.');
+  text(s, 'City / town', 'weatherLoc', 'e.g. "Toronto" or "Lisbon"');
+
+  // --- 7. Photos
+  s = q('photos', 'Photos', 'Do you want a photo slideshow?', 'The frame is, after all, a photo frame.');
+  opt(s, 'Yes — rotate through my photos', 'I\'ll set up a folder you drop images into; they get served to the frame.', 'photosOn', 'folder');
+  opt(s, 'Yes — but source them later', 'Turn it on now, point it at real photos another day.', 'photosOn', 'later');
+  opt(s, 'No photos', 'Keep it a pure info dashboard.', 'photosOn', false);
+
+  // --- 8. Smart home
+  s = q('control', 'Smart home', 'Anything to control from the frame?', 'Lights, climate, music, cameras. Only if you already run something like Home Assistant.');
+  opt(s, 'Home Assistant', 'I can link entities to the control view.', 'controlOn', 'ha');
+  opt(s, 'Not yet / skip', 'The demo control view stays as decoration, or I hide it.', 'controlOn', false);
+
+  // --- 9. Ambience
+  s = q('ambient', 'When it\'s idle', 'What should the frame show when no one touches it?', 'It dims into "ambient" mode after a while. Pick the vibe.');
+  opt(s, 'Big clock + weather', 'Minimal, calm.', 'ambient', 'clock');
+  opt(s, 'Clock + photo slideshow', 'Classic frame behaviour.', 'ambient', 'clock-photos');
+  opt(s, 'Just photos', 'Pure slideshow.', 'ambient', 'photos');
+  opt(s, 'Leave the default', 'Whatever the demo does is fine.', 'ambient', 'default');
+
+  // --- 10. Theme
+  s = q('theme', 'Look & feel', 'Pick an accent colour', 'For person highlights, buttons and the vibe. You can change it any time.');
+  note(s, '<div class="swatches" id="swatches"></div>');
+
+  // ---- rendering -----------------------------------------------------------
+  var idx = 0;
+  var $ = function (sel) { return document.querySelector(sel); };
+  var main = $('#main'), bar = $('#bar'), step = $('#step');
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(A)); }
+
+  function sectionState(sid) {
+    var s = A[sid] || (A[sid] = {});
+    return s;
+  }
+
+  function render() {
+    var sec = SECTIONS[idx];
+    step.textContent = (idx + 1) + ' / ' + SECTIONS.length;
+    bar.style.width = (100 * idx / SECTIONS.length) + '%';
+    $('#back').style.visibility = idx === 0 ? 'hidden' : 'visible';
+
+    if (idx === SECTIONS.length) { renderDone(); return; }
+
+    var st = sectionState(sec.id);
+    var html = '<div class="card"><p class="tag">' + sec.tag + '</p><h2>' + sec.title + '</h2><p class="lead">' + sec.lead + '</p>';
+
+    sec.items.forEach(function (it, i) {
+      if (it.t === 'note') { html += it.html; return; }
+      if (it.t === 'text') {
+        html += '<label class="f">' + it.label + '</label><input type="text" data-key="' + it.key + '" data-sid="' + sec.id + '" placeholder="' + it.ph.replace(/"/g, '&quot;') + '" value="' + (st[it.key] || '').replace(/"/g, '&quot;') + '" />';
+        return;
+      }
+      if (it.t === 'chips') {
+        html += '<label class="f">' + it.label + '</label><div class="chip-row">';
+        it.options.forEach(function (o) {
+          var sel = (st[it.key] || []).indexOf(o) >= 0;
+          html += '<span class="chip' + (sel ? ' sel' : '') + '" data-chip="' + it.key + '" data-val="' + o + '">' + o + '</span>';
+        });
+        html += '</div>'; return;
+      }
+      var isSel = (it.t === 'multi') ? (st[it.key] || []).indexOf(it.value) >= 0 : st[it.key] === it.value;
+      var cls = it.t === 'multi' ? 'opt multi' : 'opt';
+      html += '<div class="' + cls + (isSel ? ' sel' : '') + '" data-opt="' + it.key + '" data-val="' + it.value + '" data-multi="' + (it.t === 'multi' ? '1' : '0') + '">';
+      if (it.t === 'multi') html += '<span class="check"></span>';
+      else html += '<span class="k">' + (i + 1) + '</span>';
+      html += '<span class="body"><b>' + it.body + '</b>' + (it.sub ? '<span>' + it.sub + '</span>' : '') + '</span></div>';
+    });
+
+    html += '</div>';
+    main.innerHTML = html;
+
+    // swatches
+    var sw = $('#swatches');
+    if (sw) {
+      sw.innerHTML = COLORS.map(function (c) {
+        return '<span class="sw' + (st.accent === c ? ' sel' : '') + '" data-swatch="' + c + '" style="background:' + c + '"></span>';
+      }).join('');
+      sw.querySelectorAll('.sw').forEach(function (el) {
+        el.onclick = function () { st.accent = el.dataset.swatch; save(); render(); };
+      });
+    }
+
+    // bindings
+    main.querySelectorAll('[data-opt]').forEach(function (el) {
+      el.onclick = function () {
+        var key = el.dataset.opt, val = el.dataset.val, multi = el.dataset.multi === '1';
+        if (multi) {
+          var arr = st[key] || (st[key] = []);
+          var i2 = arr.indexOf(val);
+          if (i2 >= 0) arr.splice(i2, 1); else arr.push(val);
+        } else {
+          st[key] = val;
+        }
+        save(); render();
+      };
+    });
+    main.querySelectorAll('input[data-key]').forEach(function (el) {
+      el.oninput = function () { st[el.dataset.key] = el.value; save(); };
+    });
+    main.querySelectorAll('[data-chip]').forEach(function (el) {
+      el.onclick = function () {
+        var key = el.dataset.chip, val = el.dataset.val;
+        var arr = st[key] || (st[key] = []);
+        var i2 = arr.indexOf(val);
+        if (i2 >= 0) arr.splice(i2, 1); else arr.push(val);
+        save(); render();
+      };
+    });
+  }
+
+  // ---- build the final spec ------------------------------------------------
+  function buildSpec() {
+    var P = function (x) { return x || ''; };
+    function people() {
+      var list = (A.people && A.people.peopleList || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      var members = [];
+      list.forEach(function (raw, i) {
+        var m = raw.match(/^(.*?)\s*\((\d+)\)$/);
+        var name = m ? m[1].trim() : raw;
+        var age = m ? +m[2] : null;
+        members.push({ name: name, age: age, color: COLORS[i % COLORS.length] });
+      });
+      return { name: P(A.people && A.people.familyName) || 'Family', members: members };
+    }
+    var fam = people();
+    var spec = {
+      family: fam,
+      focus: (A.focus && A.focus.focus) || [],
+      calendar: {
+        source: A.calendar && A.calendar.calSource || 'manual',
+        icsUrl: P(A.calendar && A.calendar.icsUrl)
+      },
+      tasks: { mode: A.tasks && A.tasks.tasksOn || 'off' },
+      shopping: {
+        on: !!(A.shopping && A.shopping.shopOn),
+        stores: (A.shopping && A.shopping.stores || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean),
+        usuals: (A.shopping && A.shopping.usuals || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean)
+      },
+      weather: { location: P(A.weather && A.weather.weatherLoc) },
+      photos: { on: A.photos ? A.photos.photosOn : false },
+      control: { mode: A.control && A.control.controlOn || false },
+      ambient: A.ambient && A.ambient.ambient || 'default',
+      accent: (A.theme && A.theme.accent) || COLORS[0]
+    };
+    return spec;
+  }
+
+  function renderDone() {
+    step.textContent = 'done';
+    bar.style.width = '100%';
+    $('#next').textContent = 'Restart';
+    var spec = buildSpec();
+    var json = JSON.stringify(spec, null, 2);
+    main.innerHTML =
+      '<div class="card done"><p class="tag">All done</p><div class="big">🎉</div><h2>Here\'s your spec</h2>' +
+      '<p class="lead">Copy this and hand it to me (or just say "go" — it\'s also saved locally). I\'ll wire it into the dashboard.</p>' +
+      '<div class="summary">' + json.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>' +
+      '<p style="margin-top:16px"><button class="primary" id="copy">Copy JSON</button></p></div>';
+    $('#copy').onclick = function () {
+      navigator.clipboard.writeText(json).then(function () {
+        $('#copy').textContent = 'Copied ✓';
+        setTimeout(function () { $('#copy').textContent = 'Copy JSON'; }, 1600);
+      });
+    };
+  }
+
+  $('#next').onclick = function () {
+    if (idx === SECTIONS.length) { localStorage.removeItem(KEY); A = {}; idx = 0; render(); return; }
+    idx++; render(); window.scrollTo(0, 0);
+  };
+  $('#back').onclick = function () {
+    if (idx > 0) { idx--; render(); window.scrollTo(0, 0); }
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'Enter' && e.target.tagName !== 'INPUT') { $('#next').click(); }
+    if (e.key === 'ArrowLeft') { $('#back').click(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
