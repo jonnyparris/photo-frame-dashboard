@@ -29,6 +29,12 @@ if [ -n "$ADB_ALLOW" ]; then
     iptables -C $ADB_DROP 2> /dev/null || iptables -I $ADB_DROP
     iptables -C $ADB_LAN 2> /dev/null || iptables -I $ADB_LAN
     ip6tables -C $ADB_DROP 2> /dev/null || ip6tables -I $ADB_DROP
+    # Network ADB: root with no auth on this firmware, hence the firewall rule above.
+    # Start adbd in TCP mode (same as `adb tcpip 5555`) so the dashboard can be updated
+    # over Wi-Fi after a power cycle, without plugging in a cable.
+    setprop service.adb.tcp.port 5555
+    setprop ctl.restart adbd
+    log -t frame-wifidefer "network ADB on 5555, allowed from $ADB_ALLOW"
 fi
 if [ "$IGNORE_IPV6_RA" = 1 ]; then
     RA="INPUT -i wlan0 -p icmpv6 --icmpv6-type router-advertisement -j DROP"
