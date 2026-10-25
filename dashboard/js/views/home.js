@@ -124,6 +124,56 @@
       }).join('') + '</ul>';
   }
 
+  function todoDone(id) {
+    var list = D.todos || [];
+    var task = list.filter(function (t) { return t.id === id; })[0];
+    if (!task) return;
+    D.todos = list.filter(function (t) { return t.id !== id; });
+    if (V.el) V.el.querySelector('.h-todos').innerHTML = todos();
+    App.todoDone(id).then(function (ok) {
+      if (ok) App.toast('Done: <b>' + App.esc(task.content) + '</b>', { icon: 'check', ms: 4000, undo: function () {
+        list.push(task);
+        D.todos = list;
+        if (V.el) V.el.querySelector('.h-todos').innerHTML = todos();
+        App.todoUndo(id);
+      } });
+      else { list.push(task); D.todos = list; if (V.el) V.el.querySelector('.h-todos').innerHTML = todos(); }
+    });
+  }
+
+  function localISO(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dueLabel(due, today) {
+    if (!due) return 'Someday';
+    var diff = Math.round((new Date(due + 'T00:00:00') - new Date(today + 'T00:00:00')) / 864e5);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    if (diff === -1) return 'Yesterday';
+    if (diff < -1 && diff > -30) return Math.abs(diff) + ' days late';
+    if (diff < 0) return 'Overdue';
+    return new Date(due + 'T00:00:00').getDate() + ' ' + App.fmt.monthShort(new Date(due + 'T00:00:00'));
+  }
+  function todos() {
+    var list = D.todos || [];
+    var today = localISO(App.now());
+    list = list.slice().sort(function (a, b) {
+      function bucket(d) { return !d ? 3 : d < today ? 0 : d === today ? 1 : 2; }
+      return bucket(a.due) - bucket(b.due) || (a.due || '').localeCompare(b.due || '');
+    });
+    var shown = list.slice(0, 4);
+    return '<div class="td-head"><span class="label">Duvland todos</span><span class="num">' + list.length + '</span></div>' +
+      (shown.length ? shown.map(function (t) {
+        var late = t.due && t.due < today;
+        return '<button class="td-row" data-tdone="' + t.id + '">' +
+          '<span class="td-box">' + App.icon('check', 16) + '</span>' +
+          '<span class="td-text"><b>' + App.esc(t.content) + '</b>' +
+          '<small class="' + (late ? 'is-late' : '') + '">' + dueLabel(t.due, today) + '</small></span>' +
+          '</button>';
+      }).join('') : '<div class="td-none serif"><i>All done</i></div>') +
+      (list.length > shown.length ? '<div class="td-more">+' + (list.length - shown.length) + ' more</div>' : '');
+  }
+
   function status() {
     var lights = D.devices.filter(function (d) { return d.type === 'light' && d.on; }).length;
     var unlocked = D.devices.filter(function (d) { return d.type === 'lock' && !d.locked; });
@@ -147,6 +197,7 @@
     set('.h-chores', chores());
     set('.h-shop', shopping());
     set('.h-status', status());
+    set('.h-todos', todos());
     set('.h-quote', App.quote());
     set('.h-photo-cap', D.photos.length ? '' : '<b>No photos yet</b><span>Add some to the bucket</span>');
   }
@@ -166,6 +217,7 @@
         if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('142px'); }
         if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('150px'); }
         else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('150px'); }
+        side += '<div class="h-todos card"></div>'; rows.push('168px');
         side += '<div class="h-quote card"></div>'; rows.push('112px');
         el.innerHTML = '<div class="home">' +
           '<div class="h-clock" data-go="calendar"></div>' +
@@ -174,6 +226,8 @@
           '<div class="h-main"><div class="h-hero-slot"></div><div class="h-lanes" style="grid-template-columns:repeat(' + D.people.length + ',1fr)"></div></div>' +
           '<div class="h-side" style="grid-template-rows:' + rows.join(' ') + '">' + side + '</div></div>';
         el.addEventListener('click', function (e) {
+          var td = e.target.closest('[data-tdone]');
+          if (td) { todoDone(td.dataset.tdone); return; }
           var wx = e.target.closest('[data-weather]');
           if (wx) { App.wxSheet(); return; }
           var ev = e.target.closest('[data-ev]');

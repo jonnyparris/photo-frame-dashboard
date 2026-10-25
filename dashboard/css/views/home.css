@@ -116,3 +116,16 @@
 
 /* Weather "next 5 days" hint */
 .h-wx-5d { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; opacity: 0.55; font-size: 13px; }
+
+/* Duvland todos card (Todoist) */
+.h-todos { padding: 14px 18px 10px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.td-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+.td-head .num { font-size: 18px; font-weight: 700; }
+.td-row { display: flex; align-items: center; gap: 10px; text-align: left; padding: 5px 0; min-width: 0; }
+.td-box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid rgba(17, 17, 17, .25); display: grid; place-items: center; color: transparent; flex: none; }
+.td-row:active .td-box { background: rgba(17, 17, 17, .08); }
+.td-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.td-text b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-text small { font-size: 12px; color: #8b857c; }
+.td-text small.is-late { color: #c0392b; font-weight: 700; }
+.td-none, .td-more { font-size: 14px; color: #8b857c; }

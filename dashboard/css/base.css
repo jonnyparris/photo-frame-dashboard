@@ -309,3 +309,20 @@ button.card:active, .h-hero:active, .h-photo:active { transform: scale(.985); }
 }
 .diag b { color: #fff; }
 .diag u { text-decoration: none; color: #aaa; }
+
+/* Weather 5-day forecast sheet */
+.wx-say { font-size: 24px; font-style: italic; margin-bottom: 14px; }
+.wx-days { display: flex; flex-direction: column; gap: 2px; }
+.wx-row { display: grid; grid-template-columns: 40px 150px 1fr 110px 74px; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 12px; }
+.wx-row.is-today { background: rgba(17, 17, 17, .06); }
+.wx-i { color: #4a4a4a; display: grid; place-items: center; }
+.wx-day { font-size: 19px; font-weight: 700; line-height: 1.1; }
+.wx-day small { display: block; font-size: 13px; font-weight: 500; color: #8b857c; }
+.wx-range { position: relative; height: 8px; border-radius: 99px; background: rgba(17, 17, 17, .08); }
+.wx-range i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, #7db4d8, #e8a13c); }
+.wx-range b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(17, 17, 17, .45); }
+.wx-temp { font-size: 22px; font-weight: 700; text-align: right; white-space: nowrap; }
+.wx-temp small { font-size: 15px; font-weight: 600; color: #8b857c; }
+.wx-rain { font-size: 16px; color: #6f8ba7; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
+.wx-rain.is-wet { color: #2a72b8; font-weight: 700; }
+.wx-days { padding-right: 58px; }

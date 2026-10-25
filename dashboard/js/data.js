@@ -87,6 +87,9 @@ window.DATA = (function () {
   // ---------------------------------------------------------------- photos (filled by live.js)
   var photos = [];
 
+  // ---------------------------------------------------------------- todos (filled by live.js)
+  var todos = [];
+
   // ---------------------------------------------------------------- AI agents (hidden)
   var agents = [];
 
@@ -97,7 +100,7 @@ window.DATA = (function () {
     routines: routines, chores: chores, stars: stars, week: week,
     stores: stores, catOrder: catOrder, groceries: groceries, catalog: catalog, usuals: usuals,
     rooms: rooms, devices: devices, climate: climate, media: media, cameras: cameras, scenes: scenes,
-    weather: weather, photos: photos, agents: agents,
+    weather: weather, photos: photos, todos: todos, agents: agents,
     _gid: function () { return 'g' + (++gid); },
     _eid: function () { return 'e' + (++n); }
   };

@@ -76,50 +76,101 @@
   function loadWeather() { api('weather').then(applyWeather).catch(function () {}); }
   function loadPhotos() { api('photos').then(applyPhotos).catch(function () {}); }
 
+  // Immich on the LAN is plain HTTP (the kiosk WebView allows mixed content); only use the
+  // configured scheme if the host already includes one.
+  function immichBase(c) {
+    return (c.host.indexOf('http') === 0 ? c.host : 'http://' + c.host).replace(/\/$/, '');
+  }
+
   // The family Immich server (LAN-only) — the frame fetches it directly; the guarded
-  // /api/immich/config hands it host + album + key, exactly like /api/ha/config.
-  // The owner shares photos to that album from the phone app; the frame shows them automatically.
-  // Immich v2 API: POST /api/search/metadata lists album assets; /api/assets/{id}/thumbnail serves bytes.
-  function immichPage(c, page) {
-    return fetch('https://' + c.host + '/api/search/metadata', {
-      method: 'POST',
-      headers: { 'x-api-key': c.key, 'content-type': 'application/json' },
-      body: JSON.stringify({ albumIds: [c.album], type: 'IMAGE', visibility: 'timeline', page: page, size: 1000 })
-    }).then(function (r) { return r.ok ? r.json() : null; });
+  // /api/immich/config hands it host + key, exactly like /api/ha/config.
+  // Photo priority: today's Memories (on this day, across the years). Fallback: a few of the
+  // most recently updated albums, mixed. Immich v2 API: /api/memories, POST /api/search/metadata.
+  function immichMap(c, items, tag) {
+    return items.filter(function (x) { return x.type === 'IMAGE'; }).map(function (x) {
+      var when = (x.fileCreatedAt || x.localDateTime || '').slice(0, 10) || '2026-01-01';
+      var w = x.width, h = x.height;
+      return {
+        id: x.id,
+        url: immichBase(c) + '/api/assets/' + x.id + '/thumbnail',
+        full: immichBase(c) + '/api/assets/' + x.id + '/original',
+        o: (w != null && h != null && w < h) ? 'p' : 'l',
+        date: when, from: 'ruskin', tag: tag, fav: !!x.isFavorite
+      };
+    });
+  }
+
+  function setPhotos(c, photos) {
+    if (!photos.length) return;
+    photos.sort(function (a, b) { return b.date < a.date ? -1 : b.date > a.date ? 1 : 0; });
+    D.photos = photos;
+    App.emit('data');
   }
 
   function loadImmich() {
     api('immich/config').then(function (c) {
       if (!c || !c.configured) return;
-      var photos = [];
-      function take(page) {
-        return immichPage(c, page).then(function (d) {
-          if (!d) return;
-          var a = d.assets || {};
-          (a.items || []).forEach(function (x) {
-            var when = (x.fileCreatedAt || x.localDateTime || '').slice(0, 10) || '2026-01-01';
-            var w = x.width, h = x.height;
-            photos.push({
-              id: x.id,
-              url: 'https://' + c.host + '/api/assets/' + x.id + '/thumbnail',
-              full: 'https://' + c.host + '/api/assets/' + x.id + '/original',
-              o: (w != null && h != null && w < h) ? 'p' : 'l',
-              date: when, from: 'ruskin', tag: 'immich', fav: !!x.isFavorite
-            });
+      var headers = { 'x-api-key': c.key };
+      // POST bodies never reach the kiosk's request interceptor, so the search goes as a GET
+      // carrying ?postBody= — the kiosk converts it to a real POST upstream.
+      var search = function (body) {
+        return fetch(immichBase(c) + '/api/search/metadata?postBody=' + encodeURIComponent(JSON.stringify(body)), {
+          headers: { 'x-api-key': c.key }
+        }).then(function (r) { return r.ok ? r.json() : null; });
+      };
+      // Memories shown today come first; the rest of the memories pool fills it out.
+      return fetch(immichBase(c) + '/api/memories', { headers: headers })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (mems) {
+          var now = new Date().toISOString();
+          var today = [], older = [];
+          (mems || []).forEach(function (m) {
+            var active = m.showAt && m.hideAt && m.showAt <= now && now <= m.hideAt;
+            (active ? today : older).push(m);
           });
-          return a.nextPage != null ? take(a.nextPage) : null;
+          if (!today.length && !older.length) {
+            // No memories at all — fall back to a few recently updated albums, mixed.
+            return fetch(immichBase(c) + '/api/albums', { headers: headers })
+              .then(function (r) { return r.ok ? r.json() : []; })
+              .then(function (albums) {
+                var recent = (albums || []).slice().sort(function (a, b) {
+                  return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+                }).slice(0, 3);
+                return Promise.all(recent.map(function (al) {
+                  return search({ albumIds: [al.id], type: 'IMAGE', visibility: 'timeline', page: 1, size: 500 })
+                    .then(function (d) { return (d && d.assets && d.assets.items) || []; });
+                })).then(function (groups) {
+                  var items = [];
+                  groups.forEach(function (g) { items = items.concat(g); });
+                  setPhotos(c, immichMap(c, items, 'immich'));
+                });
+              });
+          }
+          var items = [];
+          today.concat(older).forEach(function (m) { items = items.concat(m.assets || []); });
+          setPhotos(c, immichMap(c, items, 'memory'));
+          return null;
         });
-      }
-      return take(1).then(function () {
-        if (!photos.length) return;
-        photos.sort(function (a, b) { return b.date < a.date ? -1 : b.date > a.date ? 1 : 0; });
-        D.photos = photos;
-        App.emit('data');
-      });
+    }).catch(function () {});
+  }
+
+  // Todos: the family Todoist project (the same one the e-paper dashboard shows).
+  function loadTodos() {
+    api('todos').then(function (res) {
+      D.todos = res.todos || [];
+      App.emit('data');
     }).catch(function () {});
   }
 
   function loadConfig() { api('config').then(applyConfig).catch(function () {}); }
+
+  function todoAction(action, id) {
+    var url = '/api/todos/' + action + '?id=' + encodeURIComponent(id);
+    if (key) url += '&k=' + encodeURIComponent(key);
+    return fetch(url, { method: 'POST' }).then(function (r) { return r.ok; });
+  }
+  App.todoDone = function (id) { return todoAction('close', id); };
+  App.todoUndo = function (id) { return todoAction('reopen', id); };
 
   App.on('ready', function () {
     loadConfig();
@@ -127,9 +178,11 @@
     loadWeather();
     loadPhotos();
     loadImmich();
+    loadTodos();
     setInterval(loadCalendar, 10 * 60 * 1000);
     setInterval(loadWeather, 15 * 60 * 1000);
     setInterval(loadConfig, 60 * 60 * 1000);
     setInterval(loadImmich, 5 * 60 * 1000);
+    setInterval(loadTodos, 2 * 60 * 1000);
   });
 })();

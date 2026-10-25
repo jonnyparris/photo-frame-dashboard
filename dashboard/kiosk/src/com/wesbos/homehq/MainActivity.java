@@ -38,6 +38,7 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -82,6 +83,9 @@ public class MainActivity extends Activity {
   static final String LOCAL_HOST = "127.0.0.1";
   static final int LOCAL_PORT = 8765;
   static final String LOCAL_ASSETS = "site";
+  // LAN services that don't send CORS headers; the kiosk proxies requests to them and adds the
+  // headers, so the dashboard (https) can fetch them. Only these hosts are proxied.
+  static final String PROXY_HOST = "pics.duvnas.local";
   // Android's own captive portal check: 204 when online, anything else when a portal answers.
   // Plain HTTP so a portal can redirect it, and so it works before the clock is set.
   static final String PORTAL_PROBE = "http://connectivitycheck.gstatic.com/generate_204";
@@ -199,6 +203,8 @@ public class MainActivity extends Activity {
     web.setWebViewClient(new WebViewClient() {
       @Override
       public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+        WebResourceResponse proxied = lanProxy(req);
+        if (proxied != null) return proxied;
         return localAsset(req.getUrl());
       }
 
@@ -384,6 +390,81 @@ public class MainActivity extends Activity {
    * KIOSK_SITE). Any other URL returns null and goes to the network as usual. Nothing listens on
    * the port; only this WebView sees these responses. Paths ending in / get index.html.
    */
+  /** LAN services (Immich) don't send CORS headers; the dashboard's https->http fetches would
+   *  be blocked. Proxy requests to PROXY_HOST here and add the headers. Preflight OPTIONS is
+   *  answered locally. WebResourceRequest never exposes POST bodies, so a GET carrying
+   *  ?postBody=<json> is forwarded as a POST with that body. */
+  private WebResourceResponse lanProxy(WebResourceRequest req) {
+    Uri u = req.getUrl();
+    if (u == null || !PROXY_HOST.equals(u.getHost())) return null;
+    Map<String, String> cors = new HashMap<>();
+    cors.put("Access-Control-Allow-Origin", "*");
+    cors.put("Access-Control-Allow-Headers", "x-api-key, content-type");
+    cors.put("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    cors.put("Access-Control-Max-Age", "600");
+    if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
+      return new WebResourceResponse("text/plain", "utf-8", 200, "OK", cors,
+          new ByteArrayInputStream(new byte[0]));
+    }
+    String body = null;
+    String upstream = u.toString();
+    String post = u.getQueryParameter("postBody");
+    if (post != null) {
+      Uri.Builder b = u.buildUpon().clearQuery();
+      for (String k : u.getQueryParameterNames()) {
+        if (!"postBody".equals(k)) b.appendQueryParameter(k, u.getQueryParameter(k));
+      }
+      upstream = b.build().toString();
+      body = post;
+    }
+    try {
+      HttpURLConnection conn = (HttpURLConnection) new URL(upstream).openConnection();
+      conn.setRequestMethod(body != null ? "POST" : req.getMethod());
+      conn.setConnectTimeout(8000);
+      conn.setReadTimeout(20000);
+      Map<String, String> rh = req.getRequestHeaders();
+      if (rh != null) {
+        for (Map.Entry<String, String> e : rh.entrySet()) {
+          String k = e.getKey();
+          // Accept-Encoding: the proxy would otherwise hand WebView a gzipped stream with no
+          // Content-Encoding header. Origin/Referer/Cookie must not cross to the LAN service.
+          if ("Accept-Encoding".equalsIgnoreCase(k) || "Origin".equalsIgnoreCase(k)
+              || "Referer".equalsIgnoreCase(k) || "Cookie".equalsIgnoreCase(k)) continue;
+          conn.setRequestProperty(k, e.getValue());
+        }
+      }
+      if (body != null) {
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        byte[] bytes = body.getBytes("UTF-8");
+        conn.setFixedLengthStreamingMode(bytes.length);
+        conn.getOutputStream().write(bytes);
+      }
+      int code = conn.getResponseCode();
+      String type = conn.getContentType();
+      String encoding = null;
+      if (type != null) {
+        int semi = type.indexOf(';');
+        if (semi >= 0) {
+          String rest = type.substring(semi + 1);
+          type = type.substring(0, semi).trim();
+          int cs = rest.indexOf("charset=");
+          if (cs >= 0) encoding = rest.substring(cs + 8).trim();
+        }
+      }
+      Map<String, String> respHeaders = new HashMap<>(cors);
+      String cache = conn.getHeaderField("Cache-Control");
+      if (cache != null) respHeaders.put("Cache-Control", cache);
+      InputStream in = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+      if (in == null) in = new ByteArrayInputStream(new byte[0]);
+      return new WebResourceResponse(type != null ? type : "application/octet-stream", encoding,
+          code, code < 400 ? "OK" : "Error", respHeaders, in);
+    } catch (Exception e) {
+      Log.w(TAG, "lanProxy failed for " + u);
+      return null;
+    }
+  }
+
   private WebResourceResponse localAsset(Uri u) {
     if (u == null || !"http".equalsIgnoreCase(u.getScheme()) || !LOCAL_HOST.equals(u.getHost())
         || u.getPort() != LOCAL_PORT) return null;

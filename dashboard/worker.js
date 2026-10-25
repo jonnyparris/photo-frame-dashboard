@@ -242,13 +242,51 @@ async function photos(env) {
   return json({ photos });
 }
 
+// ---------------------------------------------------------------- todos (Todoist, duvland project)
+// Same source the e-paper dashboard uses: the family Todoist project. The REST v2 API is
+// deprecated; the current API lives under /api/v1/ and takes the new base32 project id.
+async function todos(env) {
+  if (!env.TODOIST_API_KEY || !env.TODOIST_PROJECT_ID) return json({ todos: [] });
+  const cache = caches.default;
+  const cacheKey = 'https://homehq.local/api/todos?t=' + Math.floor(Date.now() / 60000);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  const res = await fetch('https://api.todoist.com/api/v1/tasks?project_id=' + env.TODOIST_PROJECT_ID, {
+    headers: { Authorization: 'Bearer ' + env.TODOIST_API_KEY },
+  });
+  if (!res.ok) return json({ error: 'todoist fetch failed', status: res.status }, 502);
+  const body = await res.json();
+  const items = Array.isArray(body) ? body : (body.results || []);
+  const todos = items.map(function (t) {
+    return { id: t.id, content: t.content, due: t.due ? t.due.date : null, priority: t.priority || 1 };
+  }).sort(function (a, b) {
+    if (a.due === b.due) return b.priority - a.priority;
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due < b.due ? -1 : 1;
+  });
+  const resp = json({ todos });
+  resp.headers.set('cache-control', 'public, max-age=60');
+  await cache.put(cacheKey, resp.clone());
+  return resp;
+}
+
+async function todoAction(env, action, id) {
+  if (!env.TODOIST_API_KEY || !id) return json({ ok: false }, 400);
+  const res = await fetch('https://api.todoist.com/api/v1/tasks/' + id + '/' + action, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + env.TODOIST_API_KEY },
+  });
+  return json({ ok: res.ok });
+}
+
 // ---------------------------------------------------------------- immich (LAN-only, like HA)
 // The worker can't reach the LAN, so the frame fetches the family Immich server directly:
 // this guarded endpoint hands it the host + album + API key, exactly like /api/ha/config.
 // The owner shares photos to that album from the phone app; the frame shows them automatically.
 function immichConfig(env) {
-  if (!env.IMMICH_HOST || !env.IMMICH_KEY || !env.IMMICH_ALBUM) return json({ configured: false });
-  return json({ configured: true, host: env.IMMICH_HOST, album: env.IMMICH_ALBUM, key: env.IMMICH_KEY });
+  if (!env.IMMICH_HOST || !env.IMMICH_KEY) return json({ configured: false });
+  return json({ configured: true, host: env.IMMICH_HOST, album: env.IMMICH_ALBUM || '', key: env.IMMICH_KEY });
 }
 
 // ---------------------------------------------------------------- home assistant (LAN-only)
@@ -261,8 +299,8 @@ function config(env) {
   return json({
     calendar: !!env.CALENDAR_ICS_URL,
     weather: true,
-    photos: !!env.PHOTOS || !!(env.IMMICH_HOST && env.IMMICH_KEY && env.IMMICH_ALBUM),
-    immich: !!(env.IMMICH_HOST && env.IMMICH_KEY && env.IMMICH_ALBUM),
+    photos: !!env.PHOTOS || !!(env.IMMICH_HOST && env.IMMICH_KEY),
+    immich: !!(env.IMMICH_HOST && env.IMMICH_KEY),
     ha: !!(env.HA_URL && env.HA_TOKEN),
   });
 }
@@ -287,6 +325,9 @@ export default {
       if (path === '/api/photos') return photos(env);
       if (path === '/api/ha/config') return haConfig(env);
       if (path === '/api/immich/config') return immichConfig(env);
+      if (path === '/api/todos') return todos(env);
+      if (path === '/api/todos/close') return todoAction(env, 'close', new URL(request.url).searchParams.get('id'));
+      if (path === '/api/todos/reopen') return todoAction(env, 'reopen', new URL(request.url).searchParams.get('id'));
       if (path === '/api/config') return config(env);
       return json({ error: 'not found' }, 404);
     }

@@ -170,17 +170,24 @@
     if (!W || !W.days) return;
     var mk = function (s) { var a = s.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); };
     var days = W.days.slice(0, 5);
+    var lo = Math.min.apply(null, days.map(function (d) { return d.lo; }));
+    var hi = Math.max.apply(null, days.map(function (d) { return d.hi; }));
     var warmest = days.slice().sort(function (a, b) { return b.hi - a.hi; })[0];
     var wettest = days.slice().sort(function (a, b) { return b.rain - a.rain; })[0];
-    var say = 'Warmest ' + App.fmt.rel(mk(warmest.date)).toLowerCase() + ' (' + warmest.hi + '°)';
-    if (wettest.rain >= 40) say += ' · rain most likely ' + App.fmt.rel(mk(wettest.date)).toLowerCase() + ' (' + wettest.rain + '%)';
-    var rows = days.map(function (d) {
-      return '<button class="wx-row" style="' + App.pstyle('ruskin') + '">' +
-        '<span class="wx-i">' + App.icon(d.cond === 'clear' ? 'sun' : d.cond === 'snow' ? 'cloud' : d.cond, 30) + '</span>' +
-        '<b>' + App.fmt.rel(mk(d.date)) + '</b><span class="num">' + d.hi + '° / ' + d.lo + '°</span>' +
-        '<span class="num' + (d.rain >= 40 ? ' is-wet' : '') + '">' + d.rain + '%</span></button>';
+    var say = 'Warmest ' + App.fmt.rel(mk(warmest.date)).toLowerCase() + ' at ' + warmest.hi + '\u00b0';
+    if (wettest.rain >= 40) say += ' \u00b7 rain most likely ' + App.fmt.rel(mk(wettest.date)).toLowerCase() + ' (' + wettest.rain + '%)';
+    var span = hi - lo || 1;
+    var rows = days.map(function (d, i) {
+      var left = ((d.lo - lo) / span) * 100, width = Math.max(6, ((d.hi - d.lo) / span) * 100);
+      return '<div class="wx-row' + (i === 0 ? ' is-today' : '') + '">' +
+        '<span class="wx-i">' + App.icon(d.cond === 'clear' ? 'sun' : d.cond === 'snow' ? 'cloud' : d.cond, 28) + '</span>' +
+        '<span class="wx-day">' + App.fmt.rel(mk(d.date)) + '<small>' + App.fmt.dayShort(mk(d.date)) + ' ' + mk(d.date).getDate() + '</small></span>' +
+        '<span class="wx-range"><i style="left:' + left + '%;width:' + width + '%"></i><b style="left:' + left + '%"></b></span>' +
+        '<span class="wx-temp num">' + d.hi + '\u00b0<small> / ' + d.lo + '\u00b0</small></span>' +
+        '<span class="wx-rain num' + (d.rain >= 40 ? ' is-wet' : '') + '">' + App.icon('drop', 15) + d.rain + '%</span>' +
+        '</div>';
     }).join('');
-    App.sheet('<div class="label">' + say + '</div><div class="wx-days">' + rows + '</div>');
+    App.sheet('<div class="wx-say serif">' + say + '</div><div class="wx-days">' + rows + '</div>');
   };
 
   var QUOTES = [
