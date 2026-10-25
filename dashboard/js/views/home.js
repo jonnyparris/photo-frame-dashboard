@@ -40,9 +40,10 @@
     var e = App.nextEvent(), now = App.now();
     if (!e) {
       var tomorrow = App.timedOn(App.addDays(now, 1))[0];
+      var hol = App.allDayOn(now).filter(App.isHoliday)[0];
       return '<div class="h-hero h-hero--empty" data-go="calendar">' +
-        '<div class="label label--light">Rest of today</div>' +
-        '<div class="h-hero-title serif">Nothing else scheduled.<br><i>Enjoy the quiet.</i></div>' +
+        '<div class="label label--light">' + (hol ? 'Public holiday' : 'Rest of today') + '</div>' +
+        '<div class="h-hero-title serif">' + (hol ? '<span style="color:' + D.holiday.color + '">' + App.esc(hol.title) + '</span><br><i>Enjoy the day off.</i>' : 'Nothing else scheduled.<br><i>Enjoy the quiet.</i>') + '</div>' +
         (tomorrow ? '<div class="h-hero-meta">Tomorrow starts with <b>' + App.esc(tomorrow.title) + '</b> at ' + App.fmt.time(tomorrow.start) + '</div>' : '') +
         '</div>';
     }

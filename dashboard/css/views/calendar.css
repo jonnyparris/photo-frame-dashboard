@@ -184,3 +184,7 @@
 .more-row i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
 .more-row b { font-size: 21px; flex: 1; }
 .more-row span { font-size: 16px; color: var(--mute); }
+
+/* Public holidays (Portugal): green via D.holiday, italic serif so they read as a different kind of event. */
+.ad--holiday, .wk-ad.is-holiday, .ev.is-holiday .ev-title { font-style: italic; }
+.ad--holiday svg, .wk-ad.is-holiday svg { flex: none; }

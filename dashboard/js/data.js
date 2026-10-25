@@ -24,6 +24,8 @@ window.DATA = (function () {
     { id: 'buffy', name: 'Buffy', color: '#9C27B0', rgb: '156 39 176', ink: '#FFFFFF', home: true, status: 'Home' }
   ];
   var family = { id: 'family', name: config.familyName, color: '#111111', rgb: '17 17 17', ink: '#FFFFFF' };
+  // Portugal public holidays — flag green so they read as a different kind of event.
+  var holiday = { id: 'holiday', name: 'Holiday', color: '#046A38', rgb: '4 106 56', ink: '#FFFFFF' };
 
   // ---------------------------------------------------------------- calendar (filled by live.js)
   var n = 0;
@@ -90,7 +92,7 @@ window.DATA = (function () {
 
   return {
     config: config,
-    people: people, family: family, ALL: ALL,
+    people: people, family: family, holiday: holiday, ALL: ALL,
     events: events, busyExtras: busyExtras,
     routines: routines, chores: chores, stars: stars, week: week,
     stores: stores, catOrder: catOrder, groceries: groceries, catalog: catalog, usuals: usuals,

@@ -28,6 +28,13 @@
 
   function applyCalendar(res) {
     D.events = (res.events || []).map(function (ev) {
+      var people = null;
+      if (ev.people === '*') people = D.ALL.slice();
+      else if (Array.isArray(ev.people) && ev.people.length) {
+        people = ev.people.filter(function (id) {
+          return D.people.some(function (p) { return p.id === id; });
+        });
+      }
       return {
         id: ev.id || ('e' + Math.random().toString(36).slice(2)),
         start: new Date(ev.start),
@@ -35,7 +42,8 @@
         title: ev.title || '(no title)',
         allDay: !!ev.allDay,
         loc: ev.loc || '',
-        people: matchPeople(ev.title, ev.loc)
+        kind: ev.kind || '',
+        people: (people && people.length) ? people : matchPeople(ev.title, ev.loc)
       };
     });
     App.emit('data');

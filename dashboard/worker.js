@@ -12,6 +12,10 @@ import ICAL from 'ical.js';
 
 const ALMADA = { lat: 38.679, lon: -9.157 }; // Almada, Portugal
 
+// Portugal public holidays (national; covers Almada/Lisbon). Public calendar, no secret needed.
+const PORTUGAL_HOLIDAYS_ICS =
+  'https://calendar.google.com/calendar/ical/en-gb.portuguese%23holiday%40group.v.calendar.google.com/public/basic.ics';
+
 function json(data, status) {
   return new Response(JSON.stringify(data), {
     status: status || 200,
@@ -32,7 +36,7 @@ function authorized(request, env) {
 }
 
 // ---------------------------------------------------------------- calendar
-function expandEvents(vevents, from, to) {
+function expandEvents(vevents, from, to, extra) {
   const out = [];
   for (const vevent of vevents) {
     let ev;
@@ -65,11 +69,22 @@ function expandEvents(vevents, from, to) {
       if (startJs.getTime() + durMs >= from.getTime() && startJs <= to) occurrences.push(startJs);
     }
     for (const s of occurrences) {
-      out.push({ id: uid + '#' + s.getTime(), uid, start: s.toISOString(), end: new Date(s.getTime() + durMs).toISOString(), allDay, title, loc });
+      out.push(Object.assign({ id: uid + '#' + s.getTime(), uid, start: s.toISOString(), end: new Date(s.getTime() + durMs).toISOString(), allDay, title, loc }, extra));
     }
   }
   out.sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
   return out;
+}
+
+// Normalized title for cross-calendar de-duplication: lowercase, diacritics and punctuation
+// stripped, so "São João's Party" and "sao joaos party" match.
+function normTitle(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function overlaps(a, b) {
+  return a.start < b.end && b.start < a.end;
 }
 
 async function calendar(env) {
@@ -78,15 +93,66 @@ async function calendar(env) {
   const from = new Date(now.getTime() - 30 * 864e5);
   const to = new Date(now.getTime() + 90 * 864e5);
   const cache = caches.default;
-  const cacheKey = 'https://homehq.local/api/calendar?v=2&t=' + Math.floor(now.getTime() / 600000);
+  const cacheKey = 'https://homehq.local/api/calendar?v=3&t=' + Math.floor(now.getTime() / 600000);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
 
-  const res = await fetch(env.CALENDAR_ICS_URL, { headers: { 'user-agent': 'HomeHQ/1.0 (+frame dashboard)' } });
-  if (!res.ok) return json({ error: 'ics fetch failed', status: res.status }, 502);
-  const text = await res.text();
-  const events = expandEvents(new ICAL.Component(ICAL.parse(text)).getAllSubcomponents('vevent'), from, to);
-  const resp = json({ events, from: from.toISOString(), to: to.toISOString() });
+  // Family + Sarah's calendar + public holidays, fetched in parallel. A failing secondary
+  // source is skipped; the family feed failing fails the endpoint so clients keep their cache.
+  const sources = [
+    ['family', env.CALENDAR_ICS_URL, null],
+    ['sarah', env.SARAH_CALENDAR_ICS_URL, { people: ['sarah'] }],
+    ['holiday', PORTUGAL_HOLIDAYS_ICS, { kind: 'holiday', people: '*' }],
+  ].filter((s) => s[1]);
+  const parsed = await Promise.all(sources.map(async ([name, url, extra]) => {
+    try {
+      const res = await fetch(url, { headers: { 'user-agent': 'HomeHQ/1.0 (+frame dashboard)' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const vevents = new ICAL.Component(ICAL.parse(text)).getAllSubcomponents('vevent');
+      return { name, events: expandEvents(vevents, from, to, extra) };
+    } catch (e) {
+      return { name, events: [], error: String(e.message || e) };
+    }
+  }));
+  const byName = Object.fromEntries(parsed.map((p) => [p.name, p]));
+  if (byName.family.error) return json({ error: 'ics fetch failed', detail: byName.family.error }, 502);
+  const family = byName.family.events;
+  const sarah = byName.sarah ? byName.sarah.events : [];
+  const holidays = byName.holiday ? byName.holiday.events : [];
+
+  // De-duplicate: an event in both the family and Sarah's calendars is one event both parents
+  // attend — keep the family copy, widen it to everyone (people: '*'), and drop Sarah's copy.
+  // Holidays already on a personal calendar are dropped too, so busy days stay uncluttered.
+  const events = family.slice();
+  const byTitle = new Map();
+  const index = (e) => {
+    const k = normTitle(e.title);
+    if (!k) return;
+    if (!byTitle.has(k)) byTitle.set(k, []);
+    byTitle.get(k).push(e);
+  };
+  events.forEach(index);
+  let merged = 0, droppedHolidays = 0;
+  for (const ev of sarah) {
+    const dup = (byTitle.get(normTitle(ev.title)) || []).find((f) => overlaps(f, ev));
+    if (dup) { dup.people = '*'; merged++; continue; }
+    events.push(ev);
+    index(ev);
+  }
+  for (const ev of holidays) {
+    if ((byTitle.get(normTitle(ev.title)) || []).some((f) => overlaps(f, ev))) { droppedHolidays++; continue; }
+    events.push(ev);
+    index(ev);
+  }
+  events.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+
+  const resp = json({
+    events,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    sources: { family: family.length, sarah: sarah.length, holidays: holidays.length, merged, droppedHolidays },
+  });
   resp.headers.set('cache-control', 'public, max-age=600');
   await cache.put(cacheKey, resp.clone());
   return resp;

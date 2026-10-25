@@ -46,7 +46,7 @@
     var now = App.now();
     var p = opts.color || App.evColor(e);
     var mins = (e.end - e.start) / 60000;
-    var cls = 'ev' + (e.end <= now ? ' is-past' : '') + (e.start <= now && e.end > now ? ' is-now' : '') + (mins < 45 ? ' is-short' : '') + (App.isFamily(e) ? ' is-family' : '') + (opts.half ? ' is-half' : '');
+    var cls = 'ev' + (e.end <= now ? ' is-past' : '') + (e.start <= now && e.end > now ? ' is-now' : '') + (mins < 45 ? ' is-short' : '') + (App.isFamily(e) ? ' is-family' : '') + (App.isHoliday(e) ? ' is-holiday' : '') + (opts.half ? ' is-half' : '');
     var others = opts.lane ? e.people.filter(function (id) { return id !== opts.lane; }) : (e.people.length > 1 && !App.isFamily(e) ? e.people : []);
     var travel = e.travel ? '<span class="ev-travel" style="height:' + (e.travel * PX / 60) + 'px"></span>' : '';
     return '<button class="' + cls + '" data-ev="' + e.id + '" style="' + App.pstyle(p) + ';' + style + '">' + travel +
@@ -93,8 +93,8 @@
       var idx = D.people.map(function (p) { return p.id; }).indexOf(e.people[0]);
       var col = fam2 ? '1 / -1' : (idx + 1) + ' / span 1';
       var s = App.dayStart(day), spanDays = Math.round((e.end - e.start) / 864e5), dayN = Math.round((s - e.start) / 864e5) + 1;
-      return '<button class="ad' + (e.start < s ? ' ad--cont' : '') + '" data-ev="' + e.id + '" style="grid-column:' + col + ';' + App.pstyle(App.evColor(e)) + '">' +
-        (e.start < s ? App.icon('left', 16) : '') + App.esc(e.title) + (spanDays > 1 ? ' <small>Day ' + dayN + ' of ' + spanDays + '</small>' : '') + '</button>';
+      return '<button class="ad' + (e.start < s ? ' ad--cont' : '') + (App.isHoliday(e) ? ' ad--holiday' : '') + '" data-ev="' + e.id + '" style="grid-column:' + col + ';' + App.pstyle(App.evColor(e)) + '">' +
+        (App.isHoliday(e) ? App.icon('star', 16) + ' ' : '') + (e.start < s ? App.icon('left', 16) : '') + App.esc(e.title) + (spanDays > 1 ? ' <small>Day ' + dayN + ' of ' + spanDays + '</small>' : '') + '</button>';
     }).join('') + '</div></div>' : '';
     var grid = '<div class="grid-scroll"><div class="grid" style="height:' + (END - START) * PX + 'px">' +
       '<div class="hours">' + hoursCol() + '</div>' +
@@ -127,8 +127,8 @@
       var list = App.events().filter(function (e) { return e.allDay && e.start < s3 && e.end > s0; });
       ad = '<div class="allday"><div class="gutter label">All day</div><div class="allday-grid allday-grid--3">' + list.map(function (e) {
         var a = Math.max(0, Math.round((e.start - s0) / 864e5)), b = Math.min(3, Math.round((e.end - s0) / 864e5));
-        return '<button class="ad' + (e.start < s0 ? ' ad--cont' : '') + '" data-ev="' + e.id + '" style="grid-column:' + (a + 1) + ' / ' + (b + 1) + ';' + App.pstyle(App.evColor(e)) + '">' +
-          (e.start < s0 ? App.icon('left', 16) : '') + App.esc(e.title) + (e.end > s3 ? App.icon('right', 16) : '') + '</button>';
+        return '<button class="ad' + (e.start < s0 ? ' ad--cont' : '') + (App.isHoliday(e) ? ' ad--holiday' : '') + '" data-ev="' + e.id + '" style="grid-column:' + (a + 1) + ' / ' + (b + 1) + ';' + App.pstyle(App.evColor(e)) + '">' +
+          (App.isHoliday(e) ? App.icon('star', 16) + ' ' : '') + (e.start < s0 ? App.icon('left', 16) : '') + App.esc(e.title) + (e.end > s3 ? App.icon('right', 16) : '') + '</button>';
       }).join('') + '</div></div>';
     }
     var grid = '<div class="grid-scroll"><div class="grid" style="height:' + (END - START) * PX + 'px">' +
@@ -152,7 +152,7 @@
       var ad = App.allDayOn(d), list = App.timedOn(d), max = 7 - ad.length, more = list.length - max;
       return '<div class="wk-col' + (today ? ' is-today' : '') + '" data-day="' + (+d) + '">' +
         '<div class="wk-head"><b>' + App.fmt.dayShort(d) + '</b><span class="num">' + d.getDate() + '</span></div>' +
-        ad.map(function (e) { return '<button class="wk-ad" data-ev="' + e.id + '" style="' + App.pstyle(App.evColor(e)) + '">' + App.esc(e.title) + '</button>'; }).join('') +
+        ad.map(function (e) { return '<button class="wk-ad' + (App.isHoliday(e) ? ' is-holiday' : '') + '" data-ev="' + e.id + '" style="' + App.pstyle(App.evColor(e)) + '">' + (App.isHoliday(e) ? App.icon('star', 14) + ' ' : '') + App.esc(e.title) + '</button>'; }).join('') +
         list.slice(0, max).map(function (e) {
           return '<button class="wk-ev' + (e.end <= now ? ' is-past' : '') + '" data-ev="' + e.id + '" style="' + App.pstyle(App.evColor(e)) + '">' +
             '<span class="wk-t">' + App.fmt.time(e.start, false) + '</span><span class="wk-n">' + App.esc(e.title) + '</span></button>';
@@ -256,6 +256,9 @@
   App.eventSheet = function (e) {
     if (!e) return;
     var p = App.evColor(e), fam = App.isFamily(e);
+    var peopleRow = (fam ? D.people : e.people.map(App.person)).map(function (x) {
+      return '<span class="chip" style="' + App.pstyle(x) + '">' + App.avatar(x, 32) + x.name + '</span>';
+    }).join('');
     App.sheet(
       '<div class="evs" style="' + App.pstyle(p) + '">' +
       '<div class="evs-band"><div class="label label--on">' + App.fmt.rel(e.start) + ' · ' + App.fmt.month(e.start) + ' ' + e.start.getDate() + '</div>' +
@@ -263,10 +266,9 @@
       '<div class="evs-time num">' + (e.allDay ? 'All day' : App.fmt.range(e.start, e.end)) + '</div></div>' +
       '<div class="evs-body">' +
       (e.travel ? '<div class="evs-row evs-leave">' + App.icon('car', 28) + '<div><b>Leave by ' + App.fmt.time(App.leaveBy(e)) + '</b><span>' + e.travel + ' min drive in current traffic</span></div></div>' : '') +
+      (App.isHoliday(e) ? '<div class="evs-row">' + App.icon('star', 28) + '<div><b>Public holiday</b><span>Portugal · schools and most businesses closed</span></div></div>' : '') +
       (e.loc ? '<div class="evs-row">' + App.icon('pin', 28) + '<div><b>' + App.esc(e.loc) + '</b><span>Tap to send directions to phone</span></div></div>' : '') +
-      '<div class="evs-row">' + App.icon('person', 28) + '<div class="evs-people">' + (fam ? D.people : e.people.map(App.person)).map(function (x) {
-        return '<span class="chip" style="' + App.pstyle(x) + '">' + App.avatar(x, 32) + x.name + '</span>';
-      }).join('') + '</div></div>' +
+      (App.isHoliday(e) ? '' : '<div class="evs-row">' + App.icon('person', 28) + '<div class="evs-people">' + peopleRow + '</div></div>') +
       (e.notes ? '<div class="evs-notes serif">“' + App.esc(e.notes) + '”</div>' : '') +
       '</div></div>', { cls: 'sheet--event' });
   };
