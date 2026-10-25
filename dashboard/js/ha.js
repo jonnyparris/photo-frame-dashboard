@@ -166,7 +166,7 @@
       var roomsDevs = buildDevices(states);
       D.rooms = roomsDevs.rooms;
       D.devices = roomsDevs.devices;
-      D.climate = buildClimate(states) || D.climate;
+      D.climate = buildClimate(states); // null when the thermostat isn't in HA
       D.media = buildMedia(states) || D.media;
       D.cameras = buildCameras(states);
       D.scenes = buildScenes(states);

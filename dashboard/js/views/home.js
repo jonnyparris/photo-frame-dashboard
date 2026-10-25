@@ -18,6 +18,7 @@
       '<span class="h-wx-icon">' + App.icon(w.cond, 60) + '</span>' +
       '<span class="h-wx-temp num">' + w.temp + '°</span>' +
       '<span class="h-wx-meta"><b>' + w.label + '</b><span>H ' + w.hi + '°  L ' + w.lo + '°</span></span>' +
+      '<span class="h-wx-5d">5 day ' + App.icon('right', 13) + '</span>' +
       '</div>' +
       '<div class="h-wx-say"><b>' + w.summary + '.</b> ' + w.advice + '.</div>' +
       '<div class="h-wx-hours">' + hours.map(function (h) {
@@ -73,11 +74,15 @@
   function lanes() {
     var now = App.now();
     return D.people.map(function (p) {
+      var ad = App.allDayOn(now, p.id).filter(function (e) { return !App.isFamily(e); });
+      var adBlock = ad.map(function (e) {
+        return '<button class="h-ev" data-ev="' + e.id + '"><span class="h-ev-t">All day</span><span class="h-ev-n">' + App.esc(e.title) + '</span></button>';
+      }).join('');
       var list = App.timedOn(now, p.id).filter(function (e) { return e.end > now; });
       var shown = list.slice(0, 3), more = list.length - shown.length;
       return '<div class="h-lane" style="' + App.pstyle(p) + '">' +
         '<div class="h-lane-head">' + App.avatar(p, 30) + '<b>' + p.name + '</b></div>' +
-        (list.length ? shown.map(function (e) {
+        ((list.length || ad.length) ? adBlock + shown.map(function (e) {
           var cur = e.start <= now;
           return '<button class="h-ev' + (cur ? ' is-now' : '') + '" data-ev="' + e.id + '">' +
             '<span class="h-ev-t">' + (cur ? 'Now' : App.fmt.time(e.start, false)) + '</span>' +
@@ -128,7 +133,7 @@
     return '<div class="label">Home</div>' +
       '<div class="h-st-row">' + App.icon('bulb', 24) + '<b class="num">' + lights + '</b><span>lights on</span></div>' +
       '<div class="h-st-row' + (secure ? '' : ' is-warn') + '">' + App.icon(secure ? 'lock' : 'unlock', 24) + '<span>' + secText + '</span></div>' +
-      '<div class="h-st-row">' + App.icon('thermo', 24) + '<b class="num">' + D.climate.current + '°</b><span>inside</span></div>';
+      (D.climate ? '<div class="h-st-row">' + App.icon('thermo', 24) + '<b class="num">' + D.climate.current + '°</b><span>inside</span></div>' : '');
   }
 
   function paint() {
@@ -142,6 +147,7 @@
     set('.h-chores', chores());
     set('.h-shop', shopping());
     set('.h-status', status());
+    set('.h-quote', App.quote());
     set('.h-photo-cap', D.photos.length ? '' : '<b>No photos yet</b><span>Add some to the bucket</span>');
   }
 
@@ -160,13 +166,16 @@
         if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('142px'); }
         if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('150px'); }
         else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('150px'); }
+        side += '<div class="h-quote card"></div>'; rows.push('112px');
         el.innerHTML = '<div class="home">' +
           '<div class="h-clock" data-go="calendar"></div>' +
-          '<div class="h-weather"></div>' +
+          '<div class="h-weather" data-weather></div>' +
           '<div class="h-presence"></div>' +
           '<div class="h-main"><div class="h-hero-slot"></div><div class="h-lanes" style="grid-template-columns:repeat(' + D.people.length + ',1fr)"></div></div>' +
           '<div class="h-side" style="grid-template-rows:' + rows.join(' ') + '">' + side + '</div></div>';
         el.addEventListener('click', function (e) {
+          var wx = e.target.closest('[data-weather]');
+          if (wx) { App.wxSheet(); return; }
           var ev = e.target.closest('[data-ev]');
           if (ev) { App.eventSheet(App.findEvent(ev.dataset.ev)); return; }
           var g = e.target.closest('[data-go]');

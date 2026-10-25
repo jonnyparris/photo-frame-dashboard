@@ -1,10 +1,10 @@
-// Calendar: Today-by-person lanes (default), 3-day, rolling week, month.
+// Calendar: 5-day matrix (default), Today-by-person lanes, 3-day, rolling week, month.
 (function () {
   'use strict';
   var D = window.DATA;
   var PX = 72, START = 6, END = 23; // 72px per hour, 6 AM → 11 PM
-  var V = { mode: 'day', date: null, el: null, scroll: null };
-  var MODES = [['day', 'Today'], ['3day', '3 Day'], ['week', 'Week'], ['month', 'Month']];
+  var V = { mode: '5day', date: null, el: null, scroll: null };
+  var MODES = [['5day', '5 Days'], ['day', 'Today'], ['3day', '3 Day'], ['week', 'Week'], ['month', 'Month']];
 
   function y(d) { return ((d.getHours() + d.getMinutes() / 60) - START) * PX; }
   function clampTop(e, day) {
@@ -83,14 +83,47 @@
     return '<div class="now-line" style="top:' + y(now) + 'px"><span class="num">' + App.fmt.time(now, false) + '</span></div>';
   }
 
+  // ------------------------------------------------------------ 5 day (matrix: day rows × person columns)
+  function fiveDay() {
+    var now = App.now();
+    var CP = App.calPeople();
+    var headRow = '<div class="mx-head">' + CP.map(function (p) {
+      return '<div class="mx-person" style="' + App.pstyle(p) + '">' + App.avatar(p, 30) + '<b>' + p.name + '</b></div>';
+    }).join('') + '</div>';
+    var rows = [0, 1, 2, 3, 4].map(function (i) {
+      var d = App.addDays(V.date, i), s = App.dayStart(d), e = App.addDays(s, 1);
+      var famAD = App.allDayOn(d).filter(App.isFamily);
+      var famT = App.timedOn(d).filter(App.isFamily);
+      var famBlock = (famAD.length || famT.length) ? '<span class="mx-fam">' +
+        famAD.map(function (ev) {
+          return '<button class="mx-fam-ev' + (App.isHoliday(ev) ? ' is-holiday' : '') + '" data-ev="' + ev.id + '" style="' + App.pstyle(App.evColor(ev)) + '">' + (App.isHoliday(ev) ? App.icon('star', 14) + ' ' : '') + App.esc(ev.title) + '</button>';
+        }).join('') +
+        famT.map(function (ev) {
+          return '<button class="mx-fam-ev" data-ev="' + ev.id + '" style="' + App.pstyle(App.evColor(ev)) + '"><b class="num">' + App.fmt.time(ev.start, false) + '</b> ' + App.esc(ev.title) + '</button>';
+        }).join('') + '</span>' : '';
+      var head = '<div class="mx-day' + (App.sameDay(d, now) ? ' is-today' : '') + '"><b>' + App.fmt.day(d) + '</b><b class="num">' + d.getDate() + '</b>' + (App.sameDay(d, now) ? '<span class="label">Today</span>' : '<span class="label">' + App.fmt.rel(d) + '</span>') + famBlock + '</div>';
+      var cells = '<div class="mx-cells">' + CP.map(function (p) {
+        var items = App.events().filter(function (ev) {
+          return ev.start < e && ev.end > s && !App.isFamily(ev) && ev.people.indexOf(p.id) > -1;
+        }).sort(function (a, b) { return a.start - b.start || (a.allDay ? -1 : b.allDay ? 1 : 0); });
+        return '<div class="mx-cell" style="' + App.pstyle(p) + '">' + (items.length ? items.map(function (ev) {
+          return '<button class="mx-ev" data-ev="' + ev.id + '"><span class="mx-t num">' + (ev.allDay ? 'All day' : App.fmt.time(ev.start, false)) + '</span><span class="mx-n">' + App.esc(ev.title) + '</span></button>';
+        }).join('') : '<span class="mx-free">—</span>') + '</div>';
+      }).join('') + '</div>';
+      return head + cells;
+    }).join('');
+    return '<div class="matrix">' + headRow + rows + '</div>';
+  }
+
   // ------------------------------------------------------------ Today (lanes per person)
   function dayView() {
     var day = V.date;
     var fam = App.timedOn(day).filter(App.isFamily);
     var allDay = App.allDayOn(day);
-    var ad = allDay.length ? '<div class="allday"><div class="gutter label">All day</div><div class="allday-grid" style="grid-template-columns:repeat(' + D.people.length + ',1fr)">' + allDay.map(function (e) {
+    var CP = App.calPeople();
+    var ad = allDay.length ? '<div class="allday"><div class="gutter label">All day</div><div class="allday-grid" style="grid-template-columns:repeat(' + CP.length + ',1fr)">' + allDay.map(function (e) {
       var fam2 = App.isFamily(e);
-      var idx = D.people.map(function (p) { return p.id; }).indexOf(e.people[0]);
+      var idx = CP.map(function (p) { return p.id; }).indexOf(e.people[0]);
       var col = fam2 ? '1 / -1' : (idx + 1) + ' / span 1';
       var s = App.dayStart(day), spanDays = Math.round((e.end - e.start) / 864e5), dayN = Math.round((s - e.start) / 864e5) + 1;
       return '<button class="ad' + (e.start < s ? ' ad--cont' : '') + (App.isHoliday(e) ? ' ad--holiday' : '') + '" data-ev="' + e.id + '" style="grid-column:' + col + ';' + App.pstyle(App.evColor(e)) + '">' +
@@ -98,7 +131,7 @@
     }).join('') + '</div></div>' : '';
     var grid = '<div class="grid-scroll"><div class="grid" style="height:' + (END - START) * PX + 'px">' +
       '<div class="hours">' + hoursCol() + '</div>' +
-      '<div class="lanes" style="grid-template-columns:repeat(' + D.people.length + ',1fr)">' + D.people.map(function (p) {
+      '<div class="lanes" style="grid-template-columns:repeat(' + CP.length + ',1fr)">' + CP.map(function (p) {
         var list = App.timedOn(day, p.id).filter(function (e) { return !App.isFamily(e); });
         return '<div class="lane" style="' + App.pstyle(p) + '">' + placeBlocks(list, null, p.id) + '</div>';
       }).join('') +
@@ -185,6 +218,7 @@
     var d = V.date, now = App.now();
     if (V.mode === 'day') return { k: App.fmt.month(d) + ' ' + d.getFullYear() + (App.sameDay(d, now) ? ' · Today' : ' · ' + App.fmt.rel(d)), t: App.fmt.day(d) + ' <i>' + d.getDate() + '</i>' };
     if (V.mode === '3day') { var e = App.addDays(d, 2); return { k: App.fmt.month(d) + ' ' + d.getFullYear(), t: App.fmt.dayShort(d) + ' ' + d.getDate() + ' <i>–</i> ' + App.fmt.dayShort(e) + ' ' + e.getDate() }; }
+    if (V.mode === '5day') { var w5 = App.addDays(d, 4); return { k: 'Next 5 days', t: App.fmt.monthShort(d) + ' ' + d.getDate() + ' <i>–</i> ' + App.fmt.monthShort(w5) + ' ' + w5.getDate() }; }
     if (V.mode === 'week') { var w = App.addDays(d, 6); return { k: 'Next 7 days', t: App.fmt.monthShort(d) + ' ' + d.getDate() + ' <i>–</i> ' + App.fmt.monthShort(w) + ' ' + w.getDate() }; }
     return { k: d.getFullYear(), t: App.fmt.month(d) };
   }
@@ -202,7 +236,7 @@
   }
 
   function render() {
-    var body = { day: dayView, '3day': threeDay, week: weekView, month: monthView }[V.mode]();
+    var body = { '5day': fiveDay, day: dayView, '3day': threeDay, week: weekView, month: monthView }[V.mode]();
     V.el.innerHTML = '<div class="cal cal--' + V.mode + '">' + header() + '<div class="cal-body">' + body + '</div></div>';
     var sc = V.el.querySelector('.grid-scroll');
     if (sc) {
@@ -214,7 +248,7 @@
 
   function nav(dir) {
     if (V.mode === 'month') V.date = new Date(V.date.getFullYear(), V.date.getMonth() + dir, 1);
-    else V.date = App.addDays(V.date, dir * ({ day: 1, '3day': 3, week: 7 }[V.mode]));
+    else V.date = App.addDays(V.date, dir * ({ '5day': 5, day: 1, '3day': 3, week: 7 }[V.mode]));
     V.scroll = null;
     render();
   }

@@ -188,3 +188,24 @@
 /* Public holidays (Portugal): green via D.holiday, italic serif so they read as a different kind of event. */
 .ad--holiday, .wk-ad.is-holiday, .ev.is-holiday .ev-title { font-style: italic; }
 .ad--holiday svg, .wk-ad.is-holiday svg { flex: none; }
+
+/* ------------------------------------------------------------ 5-day matrix (day rows × person columns) */
+.matrix { height: 100%; padding: 10px 16px 16px; overflow-y: auto; }
+.mx-head { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
+.mx-person { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px;
+  background: rgb(var(--c-rgb) / 0.08); color: var(--c); }
+.mx-day { display: flex; align-items: center; gap: 10px; padding: 10px 2px 6px; flex-wrap: wrap; }
+.mx-day.is-today b:first-of-type { color: var(--accent, var(--c)); }
+.mx-day .label { opacity: 0.55; }
+.mx-fam { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+.mx-fam-ev { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; background: rgb(var(--c-rgb) / 0.12); color: var(--c); border: 1px solid rgb(var(--c-rgb) / 0.25); }
+.mx-fam-ev.is-holiday { border-style: dashed; }
+.mx-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mx-cell { display: flex; flex-direction: column; gap: 6px; padding: 8px 9px; border-radius: 12px; min-height: 88px;
+  background: rgb(var(--c-rgb) / 0.05); border: 1px solid rgb(var(--c-rgb) / 0.12); }
+.mx-ev { text-align: left; padding: 7px 9px; border-radius: 10px; background: rgb(var(--c-rgb) / 0.1);
+  display: flex; flex-direction: column; gap: 2px; }
+.mx-ev .mx-t { font-size: 12px; opacity: 0.65; }
+.mx-ev .mx-n { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.mx-free { margin: auto; opacity: 0.3; font-size: 18px; }

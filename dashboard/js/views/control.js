@@ -66,7 +66,7 @@
     var secSub = secure ? 'All doors + garage' : ((garage && garage.state !== 'closed' ? 'Garage ' + garage.state : '') + (unlocked.length ? (garage && garage.state !== 'closed' ? ' · ' : '') + unlocked.map(function (u) { return u.name; }).join(', ') : '') + ' open');
     return '<button class="sum' + (lights.length ? ' sum--warm' : '') + '" data-sum="lights"><span class="label">Lights</span><b class="num">' + lights.length + '</b><small>on in ' + unique(lights.map(function (l) { return l.room; })).length + ' rooms</small></button>' +
       '<button class="sum' + (secure ? '' : ' sum--warn') + '" data-sum="security"><span class="label">Security</span><b class="num">' + secNum + '</b><small>' + secSub + '</small></button>' +
-      '<button class="sum" data-sum="climate"><span class="label">Climate</span><b class="num">' + c.current + '°</b><small>' + (c.mode === 'off' ? 'System off' : (c.set > c.current ? 'Heating' : c.set < c.current ? 'Cooling' : 'Holding') + ' to ' + c.set + '°') + '</small></button>' +
+      (c ? '<button class="sum" data-sum="climate"><span class="label">Climate</span><b class="num">' + c.current + '°</b><small>' + (c.mode === 'off' ? 'System off' : (c.set > c.current ? 'Heating' : c.set < c.current ? 'Cooling' : 'Holding') + ' to ' + c.set + '°') + '</small></button>' : '') +
       '<button class="sum" data-sum="media"><span class="label">Media</span><b class="num">' + (m.playing ? 'Playing' : 'Paused') + '</b><small>' + m.room + ' speaker</small></button>';
   }
   function unique(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
@@ -92,6 +92,7 @@
 
   function climate() {
     var c = D.climate;
+    if (!c) return '';
     var verb = c.mode === 'off' ? 'Off' : c.set > c.current ? 'Heating' : c.set < c.current ? 'Cooling' : 'Holding';
     return '<div class="label label--light">Climate · Main floor</div>' +
       '<div class="th-main"><button class="th-btn" data-temp="-0.5" aria-label="Cooler">' + App.icon('minus', 36) + '</button>' +
@@ -313,16 +314,18 @@
       var k = t.dataset.sum;
       if (k === 'lights' || k === 'security') return listSheet(k);
       var target = V.el.querySelector(k === 'climate' ? '.hc-climate' : '.hc-media');
+      if (!target) return;
       target.classList.add('is-pulse'); setTimeout(function () { target.classList.remove('is-pulse'); }, 900);
       return;
     }
     if ((t = e.target.closest('[data-temp]'))) {
+      if (!D.climate) return;
       D.climate.set = Math.max(15, Math.min(28, D.climate.set + +t.dataset.temp));
       if (D.climate.mode === 'off') D.climate.mode = 'heat';
       if (App.onClimate) App.onClimate({ set: D.climate.set });
       return climateChanged();
     }
-    if ((t = e.target.closest('[data-tmode]'))) { D.climate.mode = t.dataset.tmode; if (App.onClimate) App.onClimate({ mode: t.dataset.tmode }); return climateChanged(); }
+    if ((t = e.target.closest('[data-tmode]'))) { if (!D.climate) return; D.climate.mode = t.dataset.tmode; if (App.onClimate) App.onClimate({ mode: t.dataset.tmode }); return climateChanged(); }
     if ((t = e.target.closest('[data-cam]'))) return App.cameraSheet(D.cameras.filter(function (c) { return c.id === t.dataset.cam; })[0]);
     if ((t = e.target.closest('[data-play]'))) { D.media.playing = !D.media.playing; if (App.onMedia) App.onMedia(D.media.playing); paintPart('.hc-media', media()); paintPart('.hc-sum', summary()); }
   }

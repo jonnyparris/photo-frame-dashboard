@@ -13,5 +13,6 @@ import './views/control.js';
 import './views/agents.js';
 import './views/ambient.js';
 import './live.js';
+import './activities.js';
 import './ha.js';
 import './diag.js';

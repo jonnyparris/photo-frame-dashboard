@@ -21,7 +21,7 @@ window.DATA = (function () {
     { id: 'blaise', name: 'Blaise', age: 2, color: '#E4007C', rgb: '228 0 124', ink: '#FFFFFF', home: true, status: 'Home' },
     { id: 'sarah', name: 'Sarah', age: 38, color: '#00A36C', rgb: '0 163 108', ink: '#FFFFFF', home: true, status: 'Home' },
     { id: 'ruskin', name: 'Ruskin', age: 38, color: '#FFB000', rgb: '255 176 0', ink: '#111111', home: true, status: 'Home' },
-    { id: 'buffy', name: 'Buffy', color: '#9C27B0', rgb: '156 39 176', ink: '#FFFFFF', home: true, status: 'Home' }
+    { id: 'buffy', name: 'Buffy', color: '#9C27B0', rgb: '156 39 176', ink: '#FFFFFF', home: true, status: 'Home', cal: false }
   ];
   var family = { id: 'family', name: config.familyName, color: '#111111', rgb: '17 17 17', ink: '#FFFFFF' };
   // Portugal public holidays — flag green so they read as a different kind of event.
@@ -71,7 +71,7 @@ window.DATA = (function () {
   // ---------------------------------------------------------------- home control (hidden until HA wired)
   var rooms = [];
   var devices = [];
-  var climate = { current: 0, set: 0, mode: 'off', humidity: 0, outside: 0 };
+  var climate = null; // thermostat data (D.climate) only exists when the Worker/HA sends it
   var media = { room: '', title: '', artist: '', playing: false, volume: 0, seed: '' };
   var cameras = [];
   var scenes = [];

@@ -162,6 +162,76 @@
     return out;
   };
 
+  // People with a calendar column (pets are on the home lanes but not in the calendar).
+  App.calPeople = function () { return D.people.filter(function (p) { return p.cal !== false; }); };
+
+  App.wxSheet = function () {
+    var W = D.weather;
+    if (!W || !W.days) return;
+    var mk = function (s) { var a = s.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); };
+    var days = W.days.slice(0, 5);
+    var warmest = days.slice().sort(function (a, b) { return b.hi - a.hi; })[0];
+    var wettest = days.slice().sort(function (a, b) { return b.rain - a.rain; })[0];
+    var say = 'Warmest ' + App.fmt.rel(mk(warmest.date)).toLowerCase() + ' (' + warmest.hi + '°)';
+    if (wettest.rain >= 40) say += ' · rain most likely ' + App.fmt.rel(mk(wettest.date)).toLowerCase() + ' (' + wettest.rain + '%)';
+    var rows = days.map(function (d) {
+      return '<button class="wx-row" style="' + App.pstyle('ruskin') + '">' +
+        '<span class="wx-i">' + App.icon(d.cond === 'clear' ? 'sun' : d.cond === 'snow' ? 'cloud' : d.cond, 30) + '</span>' +
+        '<b>' + App.fmt.rel(mk(d.date)) + '</b><span class="num">' + d.hi + '° / ' + d.lo + '°</span>' +
+        '<span class="num' + (d.rain >= 40 ? ' is-wet' : '') + '">' + d.rain + '%</span></button>';
+    }).join('');
+    App.sheet('<div class="label">' + say + '</div><div class="wx-days">' + rows + '</div>');
+  };
+
+  var QUOTES = [
+    { t: 'Family is not an important thing. It\u2019s everything.', by: 'Michael J. Fox' },
+    { t: 'A happy family is but an earlier heaven.', by: 'George Bernard Shaw' },
+    { t: 'Other things may change us, but we start and end with the family.', by: 'Anthony Brandt' },
+    { t: 'Being deeply loved by someone gives you strength, while loving someone deeply gives you courage.', by: 'Lao Tzu' },
+    { t: 'You don\u2019t choose your family. They are God\u2019s gift to you, as you are to them.', by: 'Desmond Tutu' },
+    { t: 'Home is where one starts from.', by: 'T.S. Eliot' },
+    { t: 'Alone we can do so little; together we can do so much.', by: 'Helen Keller' },
+    { t: 'Success is liking yourself, liking what you do, and liking how you do it.', by: 'Maya Angelou' },
+    { t: 'Wisdom begins in wonder.', by: 'Socrates' },
+    { t: 'The secret of getting ahead is getting started.', by: 'Mark Twain' },
+    { t: 'Well done is better than well said.', by: 'Benjamin Franklin' },
+    { t: 'Simplicity is the ultimate sophistication.', by: 'Leonardo da Vinci' },
+    { t: 'Life is short, and it is up to you to make it sweet.', by: 'Sarah Louise Delany' },
+    { t: 'The days are long, but the years are short.', by: 'Gretchen Rubin' },
+    { t: 'Don\u2019t judge each day by the harvest you reap but by the seeds that you plant.', by: 'Robert Louis Stevenson' },
+    { t: 'Whether you think you can or you think you can\u2019t, you\u2019re right.', by: 'Henry Ford' },
+    { t: 'Strive not to be a success, but rather to be of value.', by: 'Albert Einstein' },
+    { t: 'It does not matter how slowly you go as long as you do not stop.', by: 'Confucius' },
+    { t: 'Fall seven times, stand up eight.', by: 'Japanese proverb' },
+    { t: 'Talk doesn\u2019t cook rice.', by: 'Chinese proverb' },
+    { t: 'Do what you can, with what you have, where you are.', by: 'Theodore Roosevelt' },
+    { t: 'The best way to predict the future is to create it.', by: 'Peter Drucker' },
+    { t: 'In family life, love is the oil that eases friction, the cement that binds closer together.', by: 'Friedrich Nietzsche' },
+    { t: 'A family in harmony will flourish in everything.', by: 'Chinese proverb' },
+    { t: 'The most important thing a father can do for his children is to love their mother.', by: 'Theodore Hesburgh' },
+    { t: 'Beware of little expenses; a small leak will sink a great ship.', by: 'Benjamin Franklin' },
+    { t: 'The gem cannot be polished without friction, nor man perfected without trials.', by: 'Confucius' },
+    { t: 'Everything you\u2019ve ever wanted is on the other side of fear.', by: 'George Addair' },
+    { t: 'Home is the nicest word there is.', by: 'Laura Ingalls Wilder' },
+    { t: 'He who has a why to live can bear almost any how.', by: 'Friedrich Nietzsche' },
+    { t: 'Children are the living messages we send to a time we will not see.', by: 'Neil Postman' },
+    { t: 'An investment in knowledge pays the best interest.', by: 'Benjamin Franklin' },
+    { t: 'In every conceivable manner, the family is a link to our past, bridge to our future.', by: 'Alex Haley' },
+    { t: 'A man travels the world over in search of what he needs and returns home to find it.', by: 'George Moore' },
+    { t: 'Home is not where you live but where they understand you.', by: 'Christian Morgenstern' },
+    { t: 'Well begun is half done.', by: 'Aristotle' },
+    { t: 'To the world you may be one person, but to one person you may be the world.', by: 'Dr. Seuss' },
+    { t: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', by: 'Winston Churchill' },
+    { t: 'Gratitude turns what we have into enough.', by: 'Aesop' },
+    { t: 'The two most important days in your life are the day you are born and the day you find out why.', by: 'Mark Twain' }
+  ];
+  App.quote = function () {
+    var day = App.dayStart(App.now()), start = new Date(2026, 0, 1);
+    var n = Math.round((day - start) / 864e5);
+    var q = QUOTES[((n % QUOTES.length) + QUOTES.length) % QUOTES.length];
+    return '<div class="label">Quote of the day</div><div class="serif">' + App.esc(q.t) + '</div><div class="label">\u2014 ' + App.esc(q.by) + '</div>';
+  };
+
   // ------------------------------------------------------------ router
   App.register = function (name, view) { App.views[name] = view; };
   // Views are built once and kept laid out (hidden with content-visibility), so switching tabs

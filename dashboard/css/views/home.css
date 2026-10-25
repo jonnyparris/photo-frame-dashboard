@@ -108,3 +108,11 @@
 .h-st-row span { color: var(--ink-2); }
 .h-st-row.is-warn { color: #B45F00; font-weight: 800; }
 .h-st-row.is-warn span { color: inherit; }
+
+/* Daily quote card in the side column */
+.h-quote { padding: 14px 18px; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+.h-quote .serif { font-size: 18px; line-height: 1.35; font-style: italic; }
+.h-quote .label:last-child { opacity: 0.6; }
+
+/* Weather "next 5 days" hint */
+.h-wx-5d { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; opacity: 0.55; font-size: 13px; }

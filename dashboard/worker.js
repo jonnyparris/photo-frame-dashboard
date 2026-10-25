@@ -182,13 +182,13 @@ function wmo(code) {
 async function weather() {
   const now = new Date();
   const cache = caches.default;
-  const cacheKey = 'https://homehq.local/api/weather?v=1&t=' + Math.floor(now.getTime() / 900000);
+  const cacheKey = 'https://homehq.local/api/weather?v=2&t=' + Math.floor(now.getTime() / 900000);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
 
   const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + ALMADA.lat + '&longitude=' + ALMADA.lon +
     '&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,relative_humidity_2m,wind_speed_10m,is_day' +
-    '&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=2';
+    '&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max&timezone=auto&forecast_days=6';
   const res = await fetch(url);
   if (!res.ok) return json({ error: 'weather fetch failed' }, 502);
   const data = await res.json();
@@ -214,6 +214,16 @@ async function weather() {
     humidity: Math.round(h.relative_humidity_2m[cur]),
     wind: Math.round(h.wind_speed_10m[cur]),
     t: t, c: c, p: p,
+    days: d.time.slice(0, 6).map(function (date, i) {
+      const code = d.weathercode ? d.weathercode[i] : 3;
+      return {
+        date,
+        hi: Math.round(d.temperature_2m_max[i]),
+        lo: Math.round(d.temperature_2m_min[i]),
+        cond: code === 0 ? 'sun' : wmo(code),
+        rain: Math.round((d.precipitation_probability_max || [])[i] || 0),
+      };
+    }),
   };
   const resp = json(out);
   resp.headers.set('cache-control', 'public, max-age=900');
@@ -221,7 +231,8 @@ async function weather() {
   return resp;
 }
 
-// ---------------------------------------------------------------- photos
+// Photos currently come from the R2 bucket (empty until the owner uploads some). The family
+// Immich server is fetched by the frame itself (LAN-only) — see immichConfig() below.
 async function photos(env) {
   if (!env.PHOTOS) return json({ photos: [] });
   const list = await env.PHOTOS.list({ limit: 200 });
@@ -229,6 +240,15 @@ async function photos(env) {
     return { key: o.key, url: '/photos/' + encodeURIComponent(o.key), size: o.size };
   });
   return json({ photos });
+}
+
+// ---------------------------------------------------------------- immich (LAN-only, like HA)
+// The worker can't reach the LAN, so the frame fetches the family Immich server directly:
+// this guarded endpoint hands it the host + album + API key, exactly like /api/ha/config.
+// The owner shares photos to that album from the phone app; the frame shows them automatically.
+function immichConfig(env) {
+  if (!env.IMMICH_HOST || !env.IMMICH_KEY || !env.IMMICH_ALBUM) return json({ configured: false });
+  return json({ configured: true, host: env.IMMICH_HOST, album: env.IMMICH_ALBUM, key: env.IMMICH_KEY });
 }
 
 // ---------------------------------------------------------------- home assistant (LAN-only)
@@ -241,7 +261,8 @@ function config(env) {
   return json({
     calendar: !!env.CALENDAR_ICS_URL,
     weather: true,
-    photos: !!env.PHOTOS,
+    photos: !!env.PHOTOS || !!(env.IMMICH_HOST && env.IMMICH_KEY && env.IMMICH_ALBUM),
+    immich: !!(env.IMMICH_HOST && env.IMMICH_KEY && env.IMMICH_ALBUM),
     ha: !!(env.HA_URL && env.HA_TOKEN),
   });
 }
@@ -265,6 +286,7 @@ export default {
       if (path === '/api/weather') return weather();
       if (path === '/api/photos') return photos(env);
       if (path === '/api/ha/config') return haConfig(env);
+      if (path === '/api/immich/config') return immichConfig(env);
       if (path === '/api/config') return config(env);
       return json({ error: 'not found' }, 404);
     }
