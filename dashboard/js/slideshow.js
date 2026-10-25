@@ -21,7 +21,7 @@
     return {
       date: App.fmt.month(d) + ' ' + d.getDate() + ', ' + d.getFullYear(),
       monthYear: App.fmt.month(d) + ' ' + d.getFullYear(),
-      kicker: kicker, onThisDay: onThisDay, place: p.place, from: App.person(p.from)
+      kicker: kicker, onThisDay: onThisDay, place: p.place || '', from: App.person(p.from)
     };
   };
 
@@ -33,7 +33,7 @@
   function caption(ps, size) {
     var m = App.photoMeta(ps[0]);
     return '<div class="cap cap--' + (size || 'l') + '">' +
-      '<div class="cap-kicker">' + (m.onThisDay ? '<b>On this day</b> · ' : '') + m.kicker + ' · ' + App.esc(m.place) + '</div>' +
+      '<div class="cap-kicker">' + (m.onThisDay ? '<b>On this day</b> · ' : '') + m.kicker + (m.place ? ' · ' + App.esc(m.place) : '') + '</div>' +
       '<div class="cap-date serif">' + (ps.length > 1 ? m.monthYear : m.date) + '</div>' +
       '</div>';
   }
@@ -140,7 +140,9 @@
 
   S.next = function () {
     var s = this.pick();
-    if (!s) return;
+    // No photos yet (live loader still fetching) — keep the timer alive so the
+    // next tick retries instead of silently stopping forever.
+    if (!s) { this.restart(); return; }
     if (this.current) this.history.push(this.current);
     this.render(s);
     this.restart();

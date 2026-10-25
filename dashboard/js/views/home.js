@@ -205,7 +205,7 @@
   function photoCaption(s) {
     if (!s || !s.photos || !s.photos.length) return;
     var m = App.photoMeta(s.photos[0]);
-    V.el.querySelector('.h-photo-cap').innerHTML = '<b>' + (m.onThisDay ? 'On this day · ' : '') + m.kicker + '</b><span>' + App.esc(m.place) + '</span>';
+    V.el.querySelector('.h-photo-cap').innerHTML = '<b>' + (m.onThisDay ? 'On this day · ' : '') + m.kicker + '</b>' + (m.place ? '<span>' + App.esc(m.place) + '</span>' : '');
   }
 
   App.register('home', {
@@ -250,5 +250,9 @@
     V.el.querySelector('.h-hero-slot').innerHTML = hero();
     if (n.getMinutes() === 0) { V.el.querySelector('.h-weather').innerHTML = weather(); V.el.querySelector('.h-lanes').innerHTML = lanes(); }
   });
-  App.on('data', function () { if (App.current === 'home') paint(); });
+  App.on('data', function () {
+    if (App.current !== 'home') return;
+    paint();
+    if (D.photos.length && V.slides && !V.slides.current) V.slides.start();
+  });
 })();

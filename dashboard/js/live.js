@@ -86,14 +86,17 @@
   // /api/immich/config hands it host + key, exactly like /api/ha/config.
   // Photo priority: today's Memories (on this day, across the years). Fallback: a few of the
   // most recently updated albums, mixed. Immich v2 API: /api/memories, POST /api/search/metadata.
+  // Image tags can't carry the x-api-key header, so <img> URLs carry ?apiKey= instead
+  // (accepted by Immich); fetches keep the header.
   function immichMap(c, items, tag) {
+    var kq = '?apiKey=' + encodeURIComponent(c.key);
     return items.filter(function (x) { return x.type === 'IMAGE'; }).map(function (x) {
       var when = (x.fileCreatedAt || x.localDateTime || '').slice(0, 10) || '2026-01-01';
       var w = x.width, h = x.height;
       return {
         id: x.id,
-        url: immichBase(c) + '/api/assets/' + x.id + '/thumbnail',
-        full: immichBase(c) + '/api/assets/' + x.id + '/original',
+        url: immichBase(c) + '/api/assets/' + x.id + '/thumbnail' + kq,
+        full: immichBase(c) + '/api/assets/' + x.id + '/original' + kq,
         o: (w != null && h != null && w < h) ? 'p' : 'l',
         date: when, from: 'ruskin', tag: tag, fav: !!x.isFavorite
       };
