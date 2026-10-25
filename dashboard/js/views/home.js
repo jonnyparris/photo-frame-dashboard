@@ -161,7 +161,7 @@
       function bucket(d) { return !d ? 3 : d < today ? 0 : d === today ? 1 : 2; }
       return bucket(a.due) - bucket(b.due) || (a.due || '').localeCompare(b.due || '');
     });
-    var shown = list.slice(0, 4);
+    var shown = list.slice(0, 3);
     return '<div class="td-head"><span class="label">Duvland todos</span><span class="num">' + list.length + '</span></div>' +
       (shown.length ? shown.map(function (t) {
         var late = t.due && t.due < today;
@@ -214,11 +214,10 @@
       if (!el.firstChild) {
         var side = '<button class="h-photo" data-go="photos"><div class="h-photo-stage"></div><div class="h-photo-cap"></div></button>';
         var rows = ['1fr'];
-        if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('142px'); }
-        if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('150px'); }
-        else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('150px'); }
-        side += '<div class="h-todos card"></div>'; rows.push('168px');
-        side += '<div class="h-quote card"></div>'; rows.push('112px');
+        if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('118px'); }
+        if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('110px'); }
+        else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('110px'); }
+        side += '<div class="h-small"><div class="h-todos card"></div><div class="h-quote card"></div></div>'; rows.push('140px');
         el.innerHTML = '<div class="home">' +
           '<div class="h-clock" data-go="calendar"></div>' +
           '<div class="h-weather" data-weather></div>' +

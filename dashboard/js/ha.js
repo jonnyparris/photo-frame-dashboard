@@ -10,19 +10,53 @@
   var D = window.DATA;
   var cfg = { url: '', token: '' };
 
+  var inFlight = 0, resyncTimer = null, failCount = 0;
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function withTimeout(p, ms, label) {
+    return Promise.race([p, new Promise(function (_, rej) {
+      setTimeout(function () { rej(new Error((label || 'HA call') + ' timed out')); }, ms);
+    })]);
+  }
+
   App.ha = {
     ready: false,
     call: function (domain, service, data) {
       if (!cfg.url) return Promise.reject(new Error('HA not configured'));
-      return fetch(cfg.url + '/api/services/' + domain + '/' + service, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + cfg.token },
-        body: JSON.stringify(data || {})
-      }).then(function (r) { if (!r.ok) throw new Error(domain + '.' + service + ' HTTP ' + r.status); return r.json(); });
+      var body = JSON.stringify(data || {});
+      var url = cfg.url + '/api/services/' + domain + '/' + service;
+      function once() {
+        return withTimeout(fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + cfg.token },
+          body: body,
+          keepalive: true
+        }).then(function (r) { if (!r.ok) throw new Error(domain + '.' + service + ' HTTP ' + r.status); return r.json(); }),
+          8000, domain + '.' + service);
+      }
+      // Transient Wi-Fi / HA hiccups get two quick retries, so one tap feels reliable.
+      function attempt(n) {
+        return once().catch(function (e) {
+          if (n < 2) return wait(600 * (n + 1)).then(function () { return attempt(n + 1); });
+          throw e;
+        });
+      }
+      inFlight++;
+      return attempt(0).then(function (res) {
+        inFlight--;
+        scheduleResync();
+        return res;
+      }, function (e) {
+        inFlight--;
+        throw e;
+      });
     },
     states: function () {
       if (!cfg.url) return Promise.reject(new Error('HA not configured'));
-      return fetch(cfg.url + '/api/states', { headers: { 'authorization': 'Bearer ' + cfg.token } }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('states HTTP ' + r.status)); });
+      return withTimeout(fetch(cfg.url + '/api/states', {
+        headers: { 'authorization': 'Bearer ' + cfg.token },
+        cache: 'no-store'
+      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('states HTTP ' + r.status)); }),
+        6000, 'states');
     }
   };
 
@@ -159,27 +193,49 @@
     };
   }
 
+  function applyStates(states) {
+    if (!states || !states.length) return;
+    var roomsDevs = buildDevices(states);
+    D.rooms = roomsDevs.rooms;
+    D.devices = roomsDevs.devices;
+    D.climate = buildClimate(states); // null when the thermostat isn't in HA
+    D.media = buildMedia(states) || D.media;
+    D.cameras = buildCameras(states);
+    D.scenes = buildScenes(states);
+    D.config.control = true;
+    App.setSectionVisible('control', true);
+    patchActions();
+    App.emit('data');
+    App.ha.ready = true;
+  }
+
+  // Re-pull HA state just after a successful service call, so the UI reflects reality now
+  // instead of after the next minute-interval poll (which can still show the pre-change state).
+  function scheduleResync() {
+    if (resyncTimer || inFlight) return;
+    resyncTimer = setTimeout(function () {
+      resyncTimer = null;
+      App.ha.states().then(applyStates).catch(function () {});
+    }, 1200);
+  }
+
   // ------------------------------------------------------------ load + refresh
   function load() {
+    // Skip the poll while a service call is in flight — rebuilding devices would clobber
+    // the optimistic patch with (possibly stale) state; the post-call resync reconciles.
+    if (inFlight) return;
     return apiConfig().then(function () { return App.ha.states(); }).then(function (states) {
-      if (!states.length) throw new Error('no states');
-      var roomsDevs = buildDevices(states);
-      D.rooms = roomsDevs.rooms;
-      D.devices = roomsDevs.devices;
-      D.climate = buildClimate(states); // null when the thermostat isn't in HA
-      D.media = buildMedia(states) || D.media;
-      D.cameras = buildCameras(states);
-      D.scenes = buildScenes(states);
-      D.config.control = true;
-      App.setSectionVisible('control', true);
-      patchActions();
-      App.emit('data');
-      App.ha.ready = true;
+      applyStates(states);
+      failCount = 0;
     }).catch(function (e) {
-      // Reachable only if the HA fetch fails (offline, or browser blocks mixed content).
-      D.config.control = false;
-      App.setSectionVisible('control', false);
+      // A single missed poll is a blip (Wi-Fi, HA busy). Only drop the control section
+      // after repeated failures, so controls don't flicker away on every network hiccup.
+      failCount++;
       console.warn('HA unavailable:', e.message);
+      if (failCount >= 2) {
+        D.config.control = false;
+        App.setSectionVisible('control', false);
+      }
     });
   }
 

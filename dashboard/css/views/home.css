@@ -77,7 +77,8 @@
 .h-more { min-height: 36px; margin-top: auto; font-size: 16px; font-weight: 800; font-stretch: 75%; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 0 12px; }
 
 /* ---- side column */
-.h-side { grid-column: 8 / 13; display: grid; grid-template-rows: 1fr 142px 150px; gap: 16px; min-height: 0; }
+.h-side { grid-column: 8 / 13; display: grid; grid-template-rows: 1fr 110px 140px; gap: 12px; min-height: 0; }
+.h-small { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
 .h-photo { position: relative; border-radius: var(--r); overflow: hidden; background: var(--paper-2); display: block; width: 100%; }
 .h-photo-stage { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
 .h-photo-cap {
@@ -118,10 +119,10 @@
 .h-wx-5d { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; opacity: 0.55; font-size: 13px; }
 
 /* Duvland todos card (Todoist) */
-.h-todos { padding: 14px 18px 10px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.h-todos { padding: 12px 14px 8px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
 .td-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
 .td-head .num { font-size: 18px; font-weight: 700; }
-.td-row { display: flex; align-items: center; gap: 10px; text-align: left; padding: 5px 0; min-width: 0; }
+.td-row { display: flex; align-items: center; gap: 10px; text-align: left; padding: 3px 0; min-width: 0; }
 .td-box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid rgba(17, 17, 17, .25); display: grid; place-items: center; color: transparent; flex: none; }
 .td-row:active .td-box { background: rgba(17, 17, 17, .08); }
 .td-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
