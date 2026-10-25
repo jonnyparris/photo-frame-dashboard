@@ -64,6 +64,29 @@
       '<b>' + App.esc(name) + '</b><span>' + (on ? App.icon('check', 16) + 'On list' + (on.qty > 1 ? ' ×' + on.qty : '') : categorize(name)) + '</span></button>';
   }
 
+  // ---- export to Signal via Home Assistant's rest_command → the NAS Signal REST API
+  function signalMessage() {
+    var items = D.groceries.filter(function (g) { return !g.done; });
+    var lines = ['🛒 *Shopping list* · ' + App.fmt.day(App.now())];
+    D.stores.forEach(function (s) {
+      var list = items.filter(function (g) { return g.store === s.id; });
+      if (!list.length) return;
+      lines.push('', '*' + s.name + '*');
+      D.catOrder[s.id].concat(['Other']).forEach(function (cat) {
+        var inCat = list.filter(function (g) { return g.cat === cat; });
+        if (inCat.length) lines.push(cat + ': ' + inCat.map(function (g) { return g.name + (g.qty > 1 ? ' ×' + g.qty : ''); }).join(', '));
+      });
+    });
+    return lines.join('\n');
+  }
+  function sendSignal() {
+    if (!open().length) return App.toast('List is empty — nothing to send', { icon: 'bell' });
+    if (!App.ha || !App.ha.ready) return App.toast('Home Assistant not connected yet', { tone: 'error', icon: 'bolt' });
+    App.ha.call('rest_command', 'send_shopping_list', { message: signalMessage() })
+      .then(function () { App.toast('List sent to <b>Signal</b>', { icon: 'check', ms: 3500 }); })
+      .catch(function () { App.toast('Couldn\u2019t send to Signal', { tone: 'error', icon: 'bolt' }); });
+  }
+
   // ---- granular updates (full list + usuals rebuild costs ~500ms on the wall tablet)
   function swap(old, html) {
     var tmp = document.createElement('div');
@@ -122,7 +145,7 @@
   }
   function render() {
     V.el.innerHTML = '<div class="shop">' +
-      '<header class="s-head"><div><div class="label">Shared list</div><h1 class="serif">Groceries</h1></div><div class="s-count"></div><div class="seg s-stores"></div></header>' +
+      '<header class="s-head"><div><div class="label">Shared list</div><h1 class="serif">Groceries</h1></div><div class="s-count"></div><div class="seg s-stores"></div><button class="btn btn--ghost" data-signal>' + App.icon('bell', 22) + ' Send to Signal</button></header>' +
       '<div class="s-list"></div>' +
       '<aside class="s-side">' +
       '  <div class="s-add">' +
@@ -209,6 +232,7 @@
     }
     if ((t = e.target.closest('[data-add]'))) return add(t.dataset.add);
     if ((t = e.target.closest('[data-store]'))) { V.store = t.dataset.store; return paintList(); }
+    if ((t = e.target.closest('[data-signal]'))) return sendSignal();
     if ((t = e.target.closest('[data-drawer]'))) { V.drawer = !V.drawer; return paintList(); }
     if ((t = e.target.closest('[data-revive]'))) {
       var r = D.groceries.filter(function (x) { return x.id === t.dataset.revive; })[0];

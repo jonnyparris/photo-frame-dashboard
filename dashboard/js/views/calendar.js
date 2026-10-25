@@ -267,6 +267,7 @@
       '<div class="evs-body">' +
       (e.travel ? '<div class="evs-row evs-leave">' + App.icon('car', 28) + '<div><b>Leave by ' + App.fmt.time(App.leaveBy(e)) + '</b><span>' + e.travel + ' min drive in current traffic</span></div></div>' : '') +
       (App.isHoliday(e) ? '<div class="evs-row">' + App.icon('star', 28) + '<div><b>Public holiday</b><span>Portugal · schools and most businesses closed</span></div></div>' : '') +
+      (e.kind === 'school' && e.child ? '<div class="evs-row">' + App.icon('bell', 28) + '<div><b>School</b><span>' + App.esc(App.person(e.child).name) + '</span></div></div>' : '') +
       (e.loc ? '<div class="evs-row">' + App.icon('pin', 28) + '<div><b>' + App.esc(e.loc) + '</b><span>Tap to send directions to phone</span></div></div>' : '') +
       (App.isHoliday(e) ? '' : '<div class="evs-row">' + App.icon('person', 28) + '<div class="evs-people">' + peopleRow + '</div></div>') +
       (e.notes ? '<div class="evs-notes serif">“' + App.esc(e.notes) + '”</div>' : '') +

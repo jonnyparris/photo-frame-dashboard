@@ -98,7 +98,11 @@
   };
   App.isFamily = function (e) { return e.people.length >= D.people.length; };
   App.isHoliday = function (e) { return e.kind === 'holiday'; };
-  App.evColor = function (e) { return App.isHoliday(e) ? D.holiday : App.isFamily(e) ? D.family : App.person(e.people[0]); };
+  App.evColor = function (e) {
+    if (App.isHoliday(e)) return D.holiday;
+    if (e.kind === 'school' && e.child) return App.person(e.child);
+    return App.isFamily(e) ? D.family : App.person(e.people[0]);
+  };
   App.timedOn = function (day, pid) {
     var s = App.dayStart(day), e = App.addDays(s, 1);
     return App.events().filter(function (ev) {

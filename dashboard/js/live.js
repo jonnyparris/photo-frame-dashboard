@@ -39,10 +39,11 @@
         id: ev.id || ('e' + Math.random().toString(36).slice(2)),
         start: new Date(ev.start),
         end: new Date(ev.end),
-        title: ev.title || '(no title)',
+        title: ev.child ? (ev.title || '').replace(/^\[.*?\]\s*/, '') : (ev.title || '(no title)'),
         allDay: !!ev.allDay,
         loc: ev.loc || '',
         kind: ev.kind || '',
+        child: ev.child || '',
         people: (people && people.length) ? people : matchPeople(ev.title, ev.loc)
       };
     });

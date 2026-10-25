@@ -145,6 +145,14 @@ async function calendar(env) {
     events.push(ev);
     index(ev);
   }
+
+  // School events created by the n8n school-emails workflow are titled "[Child] Title".
+  // Tag them with the child so the UI colours them per kid instead of as generic family events.
+  const CHILD = { xavier: 'xavi', xavi: 'xavi', blaise: 'blaise' };
+  for (const ev of events) {
+    const m = /^\[(\w+)\]\s*(.*)$/.exec(ev.title);
+    if (m && CHILD[m[1].toLowerCase()]) { ev.child = CHILD[m[1].toLowerCase()]; ev.kind = ev.kind || 'school'; }
+  }
   events.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
 
   const resp = json({
