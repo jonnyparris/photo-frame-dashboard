@@ -295,8 +295,25 @@ function haConfig(env) {
   return json({ configured: true, url: env.HA_URL, token: env.HA_TOKEN });
 }
 
-function config(env) {
+// Build version: a hash of the served index.html, so the frame can reload itself when a new
+// deploy changes the bundle (the kiosk is headless and adb isn't always reachable).
+let versionCache = { t: 0, v: '' };
+async function buildVersion(env) {
+  const now = Date.now();
+  if (versionCache.v && now - versionCache.t < 30000) return versionCache.v;
+  try {
+    const res = await env.ASSETS.fetch(new Request('https://internal/index.html'));
+    const text = await res.text();
+    let h = 5381;
+    for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+    versionCache = { t: now, v: 'v' + (h >>> 0).toString(36) };
+  } catch (e) { /* keep the previous version on failure */ }
+  return versionCache.v || '';
+}
+
+async function config(env) {
   return json({
+    version: await buildVersion(env),
     calendar: !!env.CALENDAR_ICS_URL,
     weather: true,
     photos: !!env.PHOTOS || !!(env.IMMICH_HOST && env.IMMICH_KEY),

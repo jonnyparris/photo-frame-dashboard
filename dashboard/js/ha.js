@@ -28,8 +28,7 @@
         return withTimeout(fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + cfg.token },
-          body: body,
-          keepalive: true
+          body: body
         }).then(function (r) { if (!r.ok) throw new Error(domain + '.' + service + ' HTTP ' + r.status); return r.json(); }),
           8000, domain + '.' + service);
       }
@@ -165,10 +164,10 @@
       } else if (d.type === 'blind') call = App.ha.call('cover', patch.pos === 0 ? 'close_cover' : patch.pos >= 100 ? 'open_cover' : 'set_cover_position', { entity_id: id, position: patch.pos });
       else if (d.type === 'lock') call = App.ha.call('lock', patch.locked ? 'lock' : 'unlock', { entity_id: id });
       else if (d.type === 'garage') call = App.ha.call('cover', patch.state === 'open' ? 'open_cover' : 'close_cover', { entity_id: id });
-      if (call) call.catch(function () {
+      if (call) call.catch(function (e) {
         Object.keys(before).forEach(function (k) { d[k] = before[k]; });
         App.emit('data');
-        App.toast('Couldn’t reach <b>' + d.name + '</b> · it may be offline', { tone: 'error', icon: 'bolt' });
+        App.toast('Couldn’t reach <b>' + d.name + '</b> · ' + (e && e.message ? e.message : 'it may be offline'), { tone: 'error', icon: 'bolt' });
       });
     };
 

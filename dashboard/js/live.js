@@ -65,7 +65,11 @@
     App.emit('data');
   }
 
+  var buildVersion = '';
   function applyConfig(c) {
+    // New deploy → the served bundle changed → reload so the frame always runs the latest code.
+    if (c.version && buildVersion && c.version !== buildVersion) { location.reload(); return; }
+    buildVersion = c.version;
     D.config.control = false; // ha.js shows the control view only once HA answers
     D.config.calendar = !!c.calendar;
     D.config.haConfigured = !!c.ha;
@@ -184,7 +188,7 @@
     loadTodos();
     setInterval(loadCalendar, 10 * 60 * 1000);
     setInterval(loadWeather, 15 * 60 * 1000);
-    setInterval(loadConfig, 60 * 60 * 1000);
+    setInterval(loadConfig, 60 * 1000); // polls buildVersion → auto-reload on deploy
     setInterval(loadImmich, 5 * 60 * 1000);
     setInterval(loadTodos, 2 * 60 * 1000);
   });
