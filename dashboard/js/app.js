@@ -372,9 +372,8 @@
   var idleSec = 0;
   function onIdleTick() {
     idleSec++;
-    var blocked = $('#takeover').classList.contains('is-open');
     if (App.mode === 'nightdash' && idleSec >= 20) { App.setMode('night'); return; }
-    if (App.mode !== 'day' || blocked) return;
+    if (App.mode !== 'day') return;
     if (idleSec === App.idle.home && App.current !== 'home') { App.closeSheet(); App.go('home'); }
     if (idleSec >= App.idle.ambient) {
       App.closeSheet();
