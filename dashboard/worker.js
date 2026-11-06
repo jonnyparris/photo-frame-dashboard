@@ -248,17 +248,6 @@ async function weather() {
   return resp;
 }
 
-// Photos currently come from the R2 bucket (empty until the owner uploads some). The family
-// Immich server is fetched by the frame itself (LAN-only) — see immichConfig() below.
-async function photos(env) {
-  if (!env.PHOTOS) return json({ photos: [] });
-  const list = await env.PHOTOS.list({ limit: 200 });
-  const photos = list.objects.map(function (o) {
-    return { key: o.key, url: '/photos/' + encodeURIComponent(o.key), size: o.size };
-  });
-  return json({ photos });
-}
-
 // ---------------------------------------------------------------- todos (Todoist, duvland project)
 // Same source the e-paper dashboard uses: the family Todoist project. The REST v2 API is
 // deprecated; the current API lives under /api/v1/ and takes the new base32 project id.
@@ -333,7 +322,7 @@ async function config(env) {
     version: await buildVersion(env),
     calendar: !!env.CALENDAR_ICS_URL,
     weather: true,
-    photos: !!env.PHOTOS || !!(env.IMMICH_HOST && env.IMMICH_KEY),
+    photos: !!(env.IMMICH_HOST && env.IMMICH_KEY),
     immich: !!(env.IMMICH_HOST && env.IMMICH_KEY),
     ha: !!(env.HA_URL && env.HA_TOKEN),
   });
@@ -344,21 +333,12 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Photos are served straight from R2 (unauthenticated keys are fine for family photos).
-    if (path.startsWith('/photos/') && env.PHOTOS) {
-      const key = decodeURIComponent(path.slice('/photos/'.length));
-      const obj = await env.PHOTOS.get(key);
-      if (!obj) return new Response('not found', { status: 404 });
-      return new Response(obj.body, { headers: { 'content-type': obj.httpMetadata && obj.httpMetadata.contentType || 'image/jpeg', 'cache-control': 'public, max-age=86400' } });
-    }
-
     if (path.startsWith('/api/')) {
       if (!authorized(request, env)) return unauthorized();
       console.log('REQ [' + callerId(request) + '] ' + path);
       if (path === '/api/diag') return diag(request);
       if (path === '/api/calendar') return calendar(env);
       if (path === '/api/weather') return weather();
-      if (path === '/api/photos') return photos(env);
       if (path === '/api/ha/config') return haConfig(env);
       if (path === '/api/immich/config') return immichConfig(env);
       if (path === '/api/todos') return todos(env);

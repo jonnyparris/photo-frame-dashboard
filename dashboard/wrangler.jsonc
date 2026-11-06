@@ -6,11 +6,5 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
-  },
-  "r2_buckets": [
-    {
-      "binding": "PHOTOS",
-      "bucket_name": "home-dashboard-photos"
-    }
-  ]
+  }
 }

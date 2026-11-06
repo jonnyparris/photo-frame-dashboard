@@ -9,9 +9,7 @@ window.DATA = (function () {
   var config = {
     familyName: 'The Constants',
     accent: '#2D5BFF',
-    tasks: false,   // chores off
-    control: false, // Home Assistant — turned on by live.js once /api/config reports it
-    agents: false   // demo AI-usage view, not for this frame
+    control: false // Home Assistant — turned on by live.js once /api/config reports it
   };
 
   var ALL = ['xavi', 'blaise', 'sarah', 'ruskin', 'buffy'];
@@ -31,16 +29,6 @@ window.DATA = (function () {
   var n = 0;
   var events = [];
   var busyExtras = [];
-
-  // ---------------------------------------------------------------- chores (off)
-  var routines = [
-    { id: 'morning', name: 'Morning', range: '6 – 11 AM', from: 0, to: 11 },
-    { id: 'after', name: 'After school', range: '11 AM – 5 PM', from: 11, to: 17 },
-    { id: 'evening', name: 'Evening', range: '5 – 10 PM', from: 17, to: 24 }
-  ];
-  var chores = [];
-  var stars = {};
-  var week = {};
 
   // ---------------------------------------------------------------- shopping
   var stores = [{ id: 'auchan', name: 'Auchan' }, { id: 'aldi', name: 'Aldi' }];
@@ -90,17 +78,13 @@ window.DATA = (function () {
   // ---------------------------------------------------------------- todos (filled by live.js)
   var todos = [];
 
-  // ---------------------------------------------------------------- AI agents (hidden)
-  var agents = [];
-
   return {
     config: config,
     people: people, family: family, holiday: holiday, ALL: ALL,
     events: events, busyExtras: busyExtras,
-    routines: routines, chores: chores, stars: stars, week: week,
     stores: stores, catOrder: catOrder, groceries: groceries, catalog: catalog, usuals: usuals,
     rooms: rooms, devices: devices, climate: climate, media: media, cameras: cameras, scenes: scenes,
-    weather: weather, photos: photos, todos: todos, agents: agents,
+    weather: weather, photos: photos, todos: todos,
     _gid: function () { return 'g' + (++gid); },
     _eid: function () { return 'e' + (++n); }
   };

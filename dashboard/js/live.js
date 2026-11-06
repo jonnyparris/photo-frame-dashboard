@@ -55,16 +55,6 @@
     if (w && w.t && w.c && w.p) { D.weather = w; App.emit('data'); }
   }
 
-  function applyPhotos(res) {
-    D.photos = (res.photos || []).map(function (p) {
-      return {
-        url: p.url, o: p.o || 'l', date: p.date || '2026-01-01',
-        place: p.place || '', from: p.from || 'ruskin', tag: p.tag || 'r2', fav: !!p.fav
-      };
-    });
-    App.emit('data');
-  }
-
   var buildVersion = '';
   function applyConfig(c) {
     // New deploy → the served bundle changed → reload so the frame always runs the latest code.
@@ -78,7 +68,6 @@
 
   function loadCalendar() { api('calendar').then(applyCalendar).catch(function () {}); }
   function loadWeather() { api('weather').then(applyWeather).catch(function () {}); }
-  function loadPhotos() { api('photos').then(applyPhotos).catch(function () {}); }
 
   // Immich on the LAN is plain HTTP (the kiosk WebView allows mixed content); only use the
   // configured scheme if the host already includes one.
@@ -183,7 +172,6 @@
     loadConfig();
     loadCalendar();
     loadWeather();
-    loadPhotos();
     loadImmich();
     loadTodos();
     setInterval(loadCalendar, 10 * 60 * 1000);

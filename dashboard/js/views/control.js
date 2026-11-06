@@ -149,7 +149,11 @@
     rs.innerHTML = rooms();
     rs.scrollTop = st;
     bindTiles(rs);
-    el.querySelector('.hc-climate').innerHTML = climate();
+    var cl = el.querySelector('.hc-climate');
+    cl.innerHTML = climate();
+    cl.style.display = D.climate ? '' : 'none'; // no thermostat → no empty box
+    var camsEl = el.querySelector('.hc-cams');
+    camsEl.style.display = D.cameras.length ? '' : 'none'; // no cameras → no empty box
     el.querySelector('.hc-media').innerHTML = media();
   }
 
@@ -279,32 +283,37 @@
 
   function applyScene(id) {
     var s = D.scenes.filter(function (x) { return x.id === id; })[0];
-    var snapshot = D.devices.map(function (d) { return Object.assign({}, d); });
+    if (!s) return;
     var prevScene = V.scene;
-    Object.keys(s.set).forEach(function (k) {
-      var d = dev(k), v = s.set[k];
-      if (d.type === 'blind') d.pos = v;
-      else if (v === 0) d.on = false;
-      else { d.on = true; d.level = v; }
-    });
-    if (id === 'away' || id === 'night') D.devices.forEach(function (d) { if (d.type === 'lock') d.locked = true; });
-    V.scene = id;
-    function diff() {
-      return snapshot.filter(function (o) { var d = dev(o.id); return o.on !== d.on || o.level !== d.level || o.pos !== d.pos || o.locked !== d.locked; })
+    var snapshot = D.devices.map(function (d) { return Object.assign({}, d); });
+    var ids = [];
+    // Scenes with a local device map (demo scenes) get an optimistic per-device patch.
+    // Real HA scenes are opaque — no set map — so fire the scene and let the state
+    // resync reflect reality.
+    if (s.set && typeof s.set === 'object') {
+      Object.keys(s.set).forEach(function (k) {
+        var d = dev(k), v = s.set[k];
+        if (!d) return;
+        if (d.type === 'blind') d.pos = v;
+        else if (v === 0) d.on = false;
+        else { d.on = true; d.level = v; }
+      });
+      if (id === 'away' || id === 'night') D.devices.forEach(function (d) { if (d.type === 'lock') d.locked = true; });
+      ids = snapshot.filter(function (o) { var d = dev(o.id); return o.on !== d.on || o.level !== d.level || o.pos !== d.pos || o.locked !== d.locked; })
         .map(function (o) { return o.id; });
+      changed(ids);
     }
-    var ids = diff();
+    V.scene = id;
     paintPart('.hc-scenes', scenes());
-    changed(ids);
     if (App.onScene) App.onScene(id);
-    App.toast('<b>' + s.name + '</b> scene on', {
-      icon: s.icon, undo: function () {
-        snapshot.forEach(function (o) { Object.assign(dev(o.id), o); });
-        V.scene = prevScene;
-        paintPart('.hc-scenes', scenes());
-        changed(ids);
-      }
-    });
+    var opts = { icon: s.icon };
+    if (ids.length) opts.undo = function () {
+      snapshot.forEach(function (o) { Object.assign(dev(o.id), o); });
+      V.scene = prevScene;
+      paintPart('.hc-scenes', scenes());
+      changed(ids);
+    };
+    App.toast('<b>' + s.name + '</b> scene on', opts);
   }
 
   function onClick(e) {
@@ -333,6 +342,7 @@
 
   function camTimer() {
     clearInterval(V.camTimer);
+    if (!D.cameras.length) return; // no cameras → nothing to age, don't tick every second
     V.camTimer = setInterval(function () {
       V.camAge = V.camAge >= 20 ? 1 : V.camAge + 1;
       App.$$('.cam-age', V.el).forEach(function (a) { a.textContent = V.camAge + 's ago'; });
@@ -356,4 +366,9 @@
     resume: function () { camTimer(); },
     hide: function () { clearInterval(V.camTimer); }
   });
+
+  // Repaint when live data changes while we're visible (optimistic toggles emit 'data'
+  // immediately; HA resyncs/polls emit it later with the authoritative state). Without
+  // this the current view never repaints — tiles only refreshed on navigation.
+  App.on('data', function () { if (App.current === 'control' && V.el) paint(); });
 })();

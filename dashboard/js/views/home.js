@@ -93,26 +93,6 @@
     }).join('');
   }
 
-  function ring(done, total, size) {
-    var r = size / 2 - 5, c = 2 * Math.PI * r, f = total ? done / total : 0;
-    return '<svg class="ring" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">' +
-      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" class="ring-bg"/>' +
-      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" class="ring-fg" stroke-dasharray="' + (c * f) + ' ' + c + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/></svg>';
-  }
-  App.ring = ring;
-
-  function chores() {
-    var r = App.currentRoutine();
-    var who = D.people.map(function (p) { return p.id; }).concat(['any']);
-    return '<div class="label">Chores · ' + r.name + '</div><div class="h-rings">' + who.map(function (id) {
-      var list = D.chores.filter(function (c) { return c.r === r.id && c.who === id; });
-      if (!list.length) return '';
-      var done = list.filter(function (c) { return c.done; }).length;
-      var p = App.person(id);
-      return '<div class="h-ring' + (done === list.length ? ' is-done' : '') + '" style="' + App.pstyle(p) + '">' + ring(done, list.length, 64) +
-        '<b class="num">' + (done === list.length ? '✓' : done + '/' + list.length) + '</b><span>' + (id === 'any' ? 'Anyone' : p.name) + '</span></div>';
-    }).join('') + '</div>';
-  }
 
   function shopping() {
     var open = D.groceries.filter(function (g) { return !g.done; });
@@ -194,7 +174,6 @@
     set('.h-presence', presence());
     set('.h-hero-slot', hero());
     set('.h-lanes', lanes());
-    set('.h-chores', chores());
     set('.h-shop', shopping());
     set('.h-status', status());
     set('.h-todos', todos());
@@ -214,7 +193,6 @@
       if (!el.firstChild) {
         var side = '<button class="h-photo" data-go="photos"><div class="h-photo-stage"></div><div class="h-photo-cap"></div></button>';
         var rows = ['1fr'];
-        if (D.config.tasks) { side += '<button class="h-chores card" data-go="tasks"></button>'; rows.push('118px'); }
         if (D.config.control) { side += '<div class="h-duo"><button class="h-shop card" data-go="shopping"></button><button class="h-status card" data-go="control"></button></div>'; rows.push('110px'); }
         else { side += '<button class="h-shop card" data-go="shopping"></button>'; rows.push('110px'); }
         side += '<div class="h-small"><div class="h-todos card"></div><div class="h-quote card"></div></div>'; rows.push('140px');
