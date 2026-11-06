@@ -27,6 +27,23 @@ function unauthorized() {
   return json({ error: 'unauthorized' }, 401);
 }
 
+// Short caller tag so wrangler tail can tell the frame from the laptop.
+function callerId(request) {
+  const url = new URL(request.url);
+  return url.searchParams.get('k') ? 'frame' : 'other';
+}
+
+// The frame reports HA failures here so we can diagnose without adb.
+async function diag(request) {
+  try {
+    const body = await request.json();
+    console.log('DIAG [' + callerId(request) + '] ' + (body.msg || ''));
+  } catch (e) {
+    console.log('DIAG bad body');
+  }
+  return json({ ok: true });
+}
+
 function authorized(request, env) {
   if (!env.DASHBOARD_KEY) return false;
   const url = new URL(request.url);
@@ -337,6 +354,8 @@ export default {
 
     if (path.startsWith('/api/')) {
       if (!authorized(request, env)) return unauthorized();
+      console.log('REQ [' + callerId(request) + '] ' + path);
+      if (path === '/api/diag') return diag(request);
       if (path === '/api/calendar') return calendar(env);
       if (path === '/api/weather') return weather();
       if (path === '/api/photos') return photos(env);

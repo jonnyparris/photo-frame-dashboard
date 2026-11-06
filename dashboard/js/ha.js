@@ -17,6 +17,16 @@
       setTimeout(function () { rej(new Error((label || 'HA call') + ' timed out')); }, ms);
     })]);
   }
+  // Report frame-side events to the worker's log (wrangler tail) — the only way to see
+  // what the headless frame experiences when adb is unreachable.
+  function diag(msg) {
+    try {
+      var key = App.apiKey || '';
+      fetch('/api/diag' + (key ? '?k=' + encodeURIComponent(key) : ''), {
+        method: 'POST', body: JSON.stringify({ msg: msg })
+      }).catch(function () {});
+    } catch (e) {}
+  }
 
   App.ha = {
     ready: false,
@@ -29,13 +39,22 @@
           method: 'POST',
           headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + cfg.token },
           body: body
-        }).then(function (r) { if (!r.ok) throw new Error(domain + '.' + service + ' HTTP ' + r.status); return r.json(); }),
+        }).then(function (r) {
+          if (!r.ok) {
+            var err = new Error(domain + '.' + service + ' HTTP ' + r.status);
+            err.status = r.status;
+            throw err;
+          }
+          return r.json();
+        }),
           8000, domain + '.' + service);
       }
-      // Transient Wi-Fi / HA hiccups get two quick retries, so one tap feels reliable.
+      // Retry transient failures (network hiccup, timeout, HA busy) but never a 4xx —
+      // that's a permanent client error and retrying just adds delay.
+      function retryable(e) { return !e.status || e.status >= 500; }
       function attempt(n) {
         return once().catch(function (e) {
-          if (n < 2) return wait(600 * (n + 1)).then(function () { return attempt(n + 1); });
+          if (retryable(e) && n < 2) return wait(600 * (n + 1)).then(function () { return attempt(n + 1); });
           throw e;
         });
       }
@@ -46,6 +65,7 @@
         return res;
       }, function (e) {
         inFlight--;
+        diag('HA ' + domain + '.' + service + ' failed: ' + (e && e.message ? e.message : e));
         throw e;
       });
     },
@@ -159,7 +179,8 @@
       if (d.type === 'light') {
         var dom = d.domain || 'light';
         var ldata = { entity_id: id };
-        if (dom === 'light') ldata.brightness_pct = patch.on ? patch.level : 100;
+        // brightness_pct is only valid on turn_on — HA rejects it on turn_off with a 400.
+        if (dom === 'light' && patch.on) ldata.brightness_pct = patch.level;
         call = App.ha.call(dom, patch.on ? 'turn_on' : 'turn_off', ldata);
       } else if (d.type === 'blind') call = App.ha.call('cover', patch.pos === 0 ? 'close_cover' : patch.pos >= 100 ? 'open_cover' : 'set_cover_position', { entity_id: id, position: patch.pos });
       else if (d.type === 'lock') call = App.ha.call('lock', patch.locked ? 'lock' : 'unlock', { entity_id: id });
@@ -194,6 +215,7 @@
 
   function applyStates(states) {
     if (!states || !states.length) return;
+    diag('HA states ok: ' + states.length);
     var roomsDevs = buildDevices(states);
     D.rooms = roomsDevs.rooms;
     D.devices = roomsDevs.devices;
@@ -208,14 +230,16 @@
     App.ha.ready = true;
   }
 
-  // Re-pull HA state just after a successful service call, so the UI reflects reality now
-  // instead of after the next minute-interval poll (which can still show the pre-change state).
+  // Re-pull HA state a moment after the last service call so the UI reflects reality
+  // (Zigbee/mesh devices take a second or two to report). Debounced: rapid toggles
+  // reschedule, so the final state wins instead of a mid-change snapshot.
   function scheduleResync() {
-    if (resyncTimer || inFlight) return;
+    if (resyncTimer) clearTimeout(resyncTimer);
     resyncTimer = setTimeout(function () {
       resyncTimer = null;
+      if (inFlight) { scheduleResync(); return; }
       App.ha.states().then(applyStates).catch(function () {});
-    }, 1200);
+    }, 2500);
   }
 
   // ------------------------------------------------------------ load + refresh
@@ -230,6 +254,7 @@
       // A single missed poll is a blip (Wi-Fi, HA busy). Only drop the control section
       // after repeated failures, so controls don't flicker away on every network hiccup.
       failCount++;
+      diag('HA poll failed (' + failCount + '): ' + (e && e.message ? e.message : e));
       console.warn('HA unavailable:', e.message);
       if (failCount >= 2) {
         D.config.control = false;
